@@ -1,5 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { AlertTriangle, Building2, CheckCircle2, CircleCheckBig, Pencil, Plus, Tags, UsersRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { AlertCircle, AlertTriangle, Building2, CheckCircle2, CircleCheckBig, Pencil, Plus, Tags, UsersRound } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -17,7 +19,11 @@ import { formatMoney } from '@/lib/format';
 import { notifyError } from '@/lib/notify';
 import { navigate } from '@/lib/router';
 import { toast } from '@/lib/toast';
-import { MIN_PASSWORD } from '@/lib/workflow/setup';
+import { PRECIO_MAX } from '@/lib/workflow/validation';
+import { PASSWORD_HINT, precio } from '@/schemas/common';
+import {
+  editUserSchema, newUserSchema, serviceSchema, tallerSchema, type ServiceInput, type TallerInput, type UserInput,
+} from '@/schemas/setup.schema';
 import { ROLES, type Rol } from '@/types/domain';
 
 const ROL_HINT: Record<Rol, string> = {
@@ -27,25 +33,38 @@ const ROL_HINT: Record<Rol, string> = {
   TECNICO: 'Diagnostica y repara las órdenes asignadas.',
 };
 
+/** Error de un grupo de campos que no es un <Input> (roles, precio en la lista). */
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <p id={id} role="alert" className="flex items-center gap-1 text-xs font-medium text-danger">
+      <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
+      {message}
+    </p>
+  );
+}
+
 function TallerCard({ progress }: { progress: SetupProgress }) {
   const actions = useSetupActions();
-  const [nombre, setNombre] = useState(progress.taller.nombre);
-  const [telefono, setTelefono] = useState(progress.taller.telefono ?? '');
-  const [direccion, setDireccion] = useState(progress.taller.direccion ?? '');
+  const {
+    register, handleSubmit, formState: { errors },
+  } = useForm<TallerInput>({
+    resolver: zodResolver(tallerSchema),
+    defaultValues: { nombre: progress.taller.nombre, telefono: progress.taller.telefono ?? '', direccion: progress.taller.direccion ?? '' },
+  });
 
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    actions.updateTaller.mutateAsync({ nombre, telefono, direccion }).then(() => toast.success('Datos del taller guardados'), notifyError);
+  function onSubmit(data: TallerInput) {
+    actions.updateTaller.mutateAsync(data).then(() => toast.success('Datos del taller guardados'), notifyError);
   }
 
   return (
     <Card>
       <CardHeader icon={<Building2 aria-hidden="true" />} title="1. Datos del taller" />
       <CardBody>
-        <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-3">
-          <Input id="taller-nombre" label="Nombre" required value={nombre} onChange={(e) => setNombre(e.target.value)} />
-          <Input id="taller-telefono" label="Teléfono" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
-          <Input id="taller-direccion" label="Dirección" value={direccion} onChange={(e) => setDireccion(e.target.value)} />
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid items-start gap-4 md:grid-cols-3">
+          <Input id="taller-nombre" label="Nombre" required error={errors.nombre?.message} {...register('nombre')} />
+          <Input id="taller-telefono" label="Teléfono" type="tel" autoComplete="tel" error={errors.telefono?.message} {...register('telefono')} />
+          <Input id="taller-direccion" label="Dirección" error={errors.direccion?.message} {...register('direccion')} />
           <div className="md:col-span-3">
             <Button type="submit" variant="outline" loading={actions.updateTaller.isPending}>Guardar datos</Button>
           </div>
@@ -58,29 +77,28 @@ function TallerCard({ progress }: { progress: SetupProgress }) {
 function UserModal({ user, open, onClose }: { user: UsuarioAdmin | null; open: boolean; onClose: () => void }) {
   const actions = useSetupActions();
   const me = useCurrentUser();
-  const [nombre, setNombre] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [roles, setRoles] = useState<Rol[]>([]);
-  const [activo, setActivo] = useState(true);
+  const {
+    register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitted },
+  } = useForm<UserInput>({
+    resolver: zodResolver(user ? editUserSchema : newUserSchema),
+    defaultValues: { nombre: '', email: '', password: '', roles: [], activo: true },
+  });
 
   useEffect(() => {
     if (!open) return;
-    setNombre(user?.nombre ?? '');
-    setEmail(user?.email ?? '');
-    setPassword('');
-    setRoles(user?.roles ?? []);
-    setActivo(user?.activo ?? true);
-  }, [open, user]);
+    reset({ nombre: user?.nombre ?? '', email: user?.email ?? '', password: '', roles: user?.roles ?? [], activo: user?.activo ?? true });
+  }, [open, user, reset]);
 
+  const roles = watch('roles');
   const busy = actions.createUser.isPending || actions.updateUser.isPending;
-  const passwordOk = user ? password === '' || password.length >= MIN_PASSWORD : password.length >= MIN_PASSWORD;
-  const valid = nombre.trim().length >= 2 && email.includes('@') && roles.length > 0 && passwordOk;
 
-  function save() {
+  function save(data: UserInput) {
     const done = user
-      ? actions.updateUser.mutateAsync({ id: user.id, input: { nombre, roles, activo, password: password || undefined } })
-      : actions.createUser.mutateAsync({ nombre, email, password, roles });
+      ? actions.updateUser.mutateAsync({
+          id: user.id,
+          input: { nombre: data.nombre, roles: data.roles, activo: data.activo, password: data.password || undefined },
+        })
+      : actions.createUser.mutateAsync({ nombre: data.nombre, email: data.email, password: data.password, roles: data.roles });
     done.then(() => {
       toast.success(user ? 'Persona actualizada' : 'Persona agregada');
       onClose();
@@ -98,25 +116,27 @@ function UserModal({ user, open, onClose }: { user: UsuarioAdmin | null; open: b
       footer={
         <>
           <Button variant="outline" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button loading={busy} disabled={!valid} onClick={save}>Guardar</Button>
+          <Button loading={busy} onClick={handleSubmit(save)}>Guardar</Button>
         </>
       }
     >
-      <div className="flex flex-col gap-4">
-        <Input id="usuario-nombre" label="Nombre" required data-autofocus value={nombre} onChange={(e) => setNombre(e.target.value)} />
-        <Input id="usuario-email" label="Email" type="email" required disabled={user !== null} value={email} onChange={(e) => setEmail(e.target.value)} />
+      <form onSubmit={handleSubmit(save)} noValidate className="flex flex-col gap-4">
+        <Input id="usuario-nombre" label="Nombre" required data-autofocus error={errors.nombre?.message} {...register('nombre')} />
+        <Input id="usuario-email" label="Email" type="email" required disabled={user !== null} error={errors.email?.message} {...register('email')} />
         <Input
           id="usuario-password"
           label={user ? 'Contraseña nueva' : 'Contraseña temporal'}
           type="password"
           autoComplete="new-password"
           required={!user}
-          hint={user ? `Dejala vacía para no cambiarla. Mínimo ${MIN_PASSWORD} caracteres.` : `Mínimo ${MIN_PASSWORD} caracteres. Pasásela a la persona: después la cambia en «Mi cuenta».`}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          hint={user ? `Dejala vacía para no cambiarla. ${PASSWORD_HINT}` : `${PASSWORD_HINT} Pasásela a la persona: después la cambia en «Mi cuenta».`}
+          error={errors.password?.message}
+          {...register('password')}
         />
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">Roles</legend>
+        <fieldset className="flex flex-col gap-2" aria-describedby={errors.roles ? 'usuario-roles-error' : undefined}>
+          <legend className="mb-1 text-sm font-medium">
+            Roles <span className="text-danger" aria-hidden="true">*</span>
+          </legend>
           {ROLES.map((r) => (
             <Checkbox
               key={r}
@@ -124,14 +144,17 @@ function UserModal({ user, open, onClose }: { user: UsuarioAdmin | null; open: b
               label={ROL_LABEL[r]}
               description={ROL_HINT[r]}
               checked={roles.includes(r)}
-              onChange={(e) => setRoles((prev) => (e.target.checked ? [...prev, r] : prev.filter((x) => x !== r)))}
+              onChange={(e) => setValue('roles', e.target.checked ? [...roles, r] : roles.filter((x) => x !== r), { shouldValidate: isSubmitted })}
             />
           ))}
+          <FieldError id="usuario-roles-error" message={errors.roles?.message} />
         </fieldset>
         {user && user.id !== me?.id && (
-          <Checkbox id="usuario-activo" label="Activo" description="Si lo desactivás, deja de poder ingresar." checked={activo} onChange={(e) => setActivo(e.target.checked)} />
+          <Checkbox id="usuario-activo" label="Activo" description="Si lo desactivás, deja de poder ingresar." {...register('activo')} />
         )}
-      </div>
+        {/* Enter en un campo envía el formulario aunque los botones estén en el pie del modal */}
+        <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
+      </form>
     </Modal>
   );
 }
@@ -183,26 +206,71 @@ function PeopleCard({ progress }: { progress: SetupProgress }) {
   );
 }
 
+/** Precio editable en la lista: se guarda al salir del campo, solo si es válido. */
+function PriceInput({ id, nombre, precioBase }: { id: string; nombre: string; precioBase: number }) {
+  const actions = useSetupActions();
+  const [value, setValue] = useState(String(precioBase));
+  const [error, setError] = useState<string>();
+
+  useEffect(() => setValue(String(precioBase)), [precioBase]);
+
+  function save() {
+    if (value.trim() === String(precioBase)) {
+      setError(undefined);
+      return;
+    }
+    const r = precio.safeParse(value);
+    if (!r.success) {
+      setError(r.error.issues[0]?.message);
+      return;
+    }
+    setError(undefined);
+    actions.updateService.mutateAsync({ id, input: { precioBase: Number(r.data) } }).then(() => toast.success('Precio actualizado'), notifyError);
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex items-center gap-3">
+        <Input
+          id={`precio-${id}`}
+          label={`Precio de ${nombre}`}
+          hideLabel
+          type="number"
+          min={0}
+          max={PRECIO_MAX}
+          step={1}
+          inputMode="numeric"
+          wrapperClassName="w-32"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `precio-${id}-error` : undefined}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={save}
+        />
+        <span className="w-24 text-right text-xs text-muted tabular-nums">{formatMoney(precioBase)}</span>
+      </div>
+      <FieldError id={`precio-${id}-error`} message={error} />
+    </div>
+  );
+}
+
 function ServicesCard() {
   const services = useAllServices();
   const actions = useSetupActions();
-  const [nombre, setNombre] = useState('');
-  const [precio, setPrecio] = useState('');
-  const [prices, setPrices] = useState<Record<string, string>>({});
+  const {
+    register, handleSubmit, reset, setError, formState: { errors },
+  } = useForm<ServiceInput>({ resolver: zodResolver(serviceSchema), defaultValues: { nombre: '', precio: '' } });
 
-  function add(e: FormEvent) {
-    e.preventDefault();
-    actions.createService.mutateAsync({ nombre, precioBase: Number(precio) }).then(() => {
-      setNombre('');
-      setPrecio('');
+  function add(data: ServiceInput) {
+    const repetido = (services.data ?? []).find((s) => s.nombre.toLocaleLowerCase('es') === data.nombre.toLocaleLowerCase('es'));
+    if (repetido) {
+      setError('nombre', { message: `Ya existe el servicio «${repetido.nombre}»` });
+      return;
+    }
+    actions.createService.mutateAsync({ nombre: data.nombre, precioBase: Number(data.precio) }).then(() => {
+      reset();
       toast.success('Servicio agregado');
     }, notifyError);
-  }
-
-  function savePrice(id: string) {
-    const value = prices[id];
-    if (value === undefined) return;
-    actions.updateService.mutateAsync({ id, input: { precioBase: Number(value) } }).then(() => toast.success('Precio actualizado'), notifyError);
   }
 
   return (
@@ -219,27 +287,25 @@ function ServicesCard() {
                 checked={s.activo}
                 onChange={(e) => actions.updateService.mutateAsync({ id: s.id, input: { activo: e.target.checked } }).catch(notifyError)}
               />
-              <Input
-                id={`precio-${s.id}`}
-                label={`Precio de ${s.nombre}`}
-                hideLabel
-                type="number"
-                min={0}
-                wrapperClassName="w-32"
-                value={prices[s.id] ?? String(s.precioBase)}
-                onChange={(e) => setPrices((p) => ({ ...p, [s.id]: e.target.value }))}
-                onBlur={() => {
-                  if (prices[s.id] !== undefined && prices[s.id] !== String(s.precioBase)) savePrice(s.id);
-                }}
-              />
-              <span className="w-24 text-right text-xs text-muted tabular-nums">{formatMoney(s.precioBase)}</span>
+              <PriceInput id={s.id} nombre={s.nombre} precioBase={s.precioBase} />
             </li>
           ))}
         </ul>
-        <form onSubmit={add} className="flex flex-wrap items-end gap-3">
-          <Input id="servicio-nuevo" label="Servicio nuevo" wrapperClassName="min-w-48 flex-1" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-          <Input id="servicio-precio" label="Precio" type="number" min={0} wrapperClassName="w-32" value={precio} onChange={(e) => setPrecio(e.target.value)} />
-          <Button type="submit" variant="outline" disabled={nombre.trim().length < 2 || precio === ''} loading={actions.createService.isPending} leftIcon={<Plus aria-hidden="true" />}>
+        <form onSubmit={handleSubmit(add)} noValidate className="flex flex-wrap items-start gap-3">
+          <Input id="servicio-nuevo" label="Servicio nuevo" wrapperClassName="min-w-48 flex-1" error={errors.nombre?.message} {...register('nombre')} />
+          <Input
+            id="servicio-precio"
+            label="Precio"
+            type="number"
+            min={0}
+            max={PRECIO_MAX}
+            step={1}
+            inputMode="numeric"
+            wrapperClassName="w-40"
+            error={errors.precio?.message}
+            {...register('precio')}
+          />
+          <Button type="submit" variant="outline" className="mt-6" loading={actions.createService.isPending} leftIcon={<Plus aria-hidden="true" />}>
             Agregar
           </Button>
         </form>

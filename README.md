@@ -249,7 +249,8 @@ npm run dev:demo
 
 - **Login**: `/login` pide email y contraseña reales (`POST /auth/login`). La sesión se recupera al cargar cada página con `GET /auth/me` (`src/lib/auth/mockCurrentUser.ts`, misma API en ambos modos). Si el backend responde 401 (sesión vencida), se vuelve al login.
 - **Sin controles de demo**: no hay selector de rol, reloj simulado ni «Reiniciar demo».
-- **Primer uso**: `/registro` y `/configuracion` solo existen acá; en la demo los usuarios son fijos.
+- **Portada y talleres**: `/` es la portada pública (crear cuenta de taller o iniciar sesión; hasta 5 talleres, cada uno con sus datos). `/registro` y `/configuracion` solo funcionan acá; en la demo los usuarios son fijos.
+- **Zona de pruebas**: si el backend tiene `ALLOW_DB_RESET=true`, la portada muestra «Borrar toda la base». Se quita en la versión final.
 - **Evidencia real**: el archivo se sube como multipart y el nombre en la lista abre el archivo guardado.
 - **Reglas**: el frontend sigue usando `src/lib/workflow/` para explicar qué falta antes de enviar; el backend aplica las mismas reglas (copia en `backend/src/domain/`) y responde 422 con `details`. Si cambiás una regla, cambiala en los dos lados (`transitions.ts`, `escalation.ts`, `setup.ts` y `permissions.ts`).
 

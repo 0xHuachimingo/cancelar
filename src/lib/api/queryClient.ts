@@ -19,7 +19,7 @@ export const queryKeys = {
   users: ['users'] as const,
   allUsers: ['all-users'] as const,
   allServices: ['all-services'] as const,
-  setupStatus: ['setup-status'] as const,
+  setupMine: ['setup-mine'] as const,
   setupProgress: ['setup-progress'] as const,
   services: ['services'] as const,
   clients: (q: string) => ['clients', q] as const,

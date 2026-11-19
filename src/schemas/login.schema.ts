@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { MIN_PASSWORD } from '@/lib/workflow/setup';
 import { ROLES } from '@/types/domain';
+import { email, nombre, passwordNueva } from './common';
 
 /** Demo: email + contraseña visuales y rol de prueba. */
 export const loginSchema = z.object({
@@ -19,20 +19,27 @@ export const realLoginSchema = z.object({
 
 export type RealLoginInput = z.infer<typeof realLoginSchema>;
 
-const password = z.string().min(MIN_PASSWORD, `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres`);
+const repetida = 'Las contraseñas no coinciden';
 
-export const registerSchema = z.object({
-  tallerNombre: z.string().trim().min(2, 'Ingresá el nombre del taller'),
-  nombre: z.string().trim().min(2, 'Ingresá tu nombre'),
-  email: z.email('Ingresá un email válido'),
-  password,
-});
+export const registerSchema = z
+  .object({
+    tallerNombre: nombre('Nombre del taller', 100),
+    nombre: nombre('Tu nombre', 100),
+    email,
+    password: passwordNueva,
+    confirmar: z.string().min(1, 'Repetí la contraseña'),
+  })
+  .refine((d) => d.confirmar === d.password, { path: ['confirmar'], message: repetida });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 
-export const changePasswordSchema = z.object({
-  actual: z.string().min(1, 'Ingresá tu contraseña actual'),
-  nueva: password,
-});
+export const changePasswordSchema = z
+  .object({
+    actual: z.string().min(1, 'Ingresá tu contraseña actual'),
+    nueva: passwordNueva,
+    confirmar: z.string().min(1, 'Repetí la contraseña nueva'),
+  })
+  .refine((d) => d.nueva !== d.actual, { path: ['nueva'], message: 'Tiene que ser distinta de la actual' })
+  .refine((d) => d.confirmar === d.nueva, { path: ['confirmar'], message: repetida });
 
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/Toast';
 import { useCurrentUser, useSessionStatus } from '@/hooks/useCurrentUser';
 import { loadSession, retrySession } from '@/lib/auth/mockCurrentUser';
 import { useDashboard } from '@/hooks/useDashboard';
-import { useSetupStatus } from '@/hooks/useSetup';
+import { useMySetup } from '@/hooks/useSetup';
 import { queryClient } from '@/lib/api/queryClient';
 import { can, type Permission } from '@/lib/auth/permissions';
 import { navigate } from '@/lib/router';
@@ -43,7 +43,7 @@ function ShellInner({ currentPath, permission, title, description, actions, cust
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   // Contadores del menú (órdenes activas y alertas)
   const dashboard = useDashboard({ enabled: user !== null });
-  const setup = useSetupStatus({ enabled: user !== null });
+  const setup = useMySetup({ enabled: user !== null });
   const pendingSetup = setup.data?.configurado === false;
   const isAdmin = user !== null && can(user.roles, 'users.manage');
 

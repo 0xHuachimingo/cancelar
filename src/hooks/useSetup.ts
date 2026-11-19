@@ -5,11 +5,11 @@ import { queryClient, queryKeys } from '@/lib/api/queryClient';
 
 const invalidateAll = () => queryClient.invalidateQueries();
 
-/** Si el taller terminó la configuración inicial. La demo siempre está configurada. */
-export function useSetupStatus(options: { enabled?: boolean } = {}) {
+/** Si el taller del usuario terminó la configuración inicial. La demo siempre está configurada. */
+export function useMySetup(options: { enabled?: boolean } = {}) {
   return useQuery({
-    queryKey: queryKeys.setupStatus,
-    queryFn: () => apiClient.getSetupStatus(),
+    queryKey: queryKeys.setupMine,
+    queryFn: () => apiClient.getMySetup(),
     enabled: !isMockApi && (options.enabled ?? true),
     staleTime: 60_000,
   });

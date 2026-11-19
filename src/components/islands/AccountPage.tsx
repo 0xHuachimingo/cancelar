@@ -11,13 +11,14 @@ import { isMockApi } from '@/lib/api/config';
 import { rolesLabel } from '@/lib/domain/labels';
 import { notifyError } from '@/lib/notify';
 import { toast } from '@/lib/toast';
+import { PASSWORD_HINT } from '@/schemas/common';
 import { changePasswordSchema, type ChangePasswordInput } from '@/schemas/login.schema';
 
 function Content() {
   const user = useCurrentUser();
   const {
     register, handleSubmit, reset, formState: { errors, isSubmitting },
-  } = useForm<ChangePasswordInput>({ resolver: zodResolver(changePasswordSchema), defaultValues: { actual: '', nueva: '' } });
+  } = useForm<ChangePasswordInput>({ resolver: zodResolver(changePasswordSchema), defaultValues: { actual: '', nueva: '', confirmar: '' } });
 
   async function onSubmit(data: ChangePasswordInput) {
     try {
@@ -38,7 +39,8 @@ function Content() {
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
             <Input id="actual" label="Contraseña actual" type="password" autoComplete="current-password" required error={errors.actual?.message} {...register('actual')} />
-            <Input id="nueva" label="Contraseña nueva" type="password" autoComplete="new-password" required hint="Mínimo 8 caracteres." error={errors.nueva?.message} {...register('nueva')} />
+            <Input id="nueva" label="Contraseña nueva" type="password" autoComplete="new-password" required hint={PASSWORD_HINT} error={errors.nueva?.message} {...register('nueva')} />
+            <Input id="confirmar" label="Repetí la contraseña nueva" type="password" autoComplete="new-password" required error={errors.confirmar?.message} {...register('confirmar')} />
             <div>
               <Button type="submit" loading={isSubmitting}>Guardar</Button>
             </div>

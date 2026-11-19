@@ -31,7 +31,7 @@ import { navigate } from '@/lib/router';
 import { toast } from '@/lib/toast';
 import { calculatePriority } from '@/lib/workflow/priority';
 import { MIN_MOTIVO } from '@/lib/workflow/transitions';
-import { localDate, orderSchema, type OrderInput } from '@/schemas/order.schema';
+import { localDate, maxFechaEstimada, orderSchema, type OrderInput } from '@/schemas/order.schema';
 import { NIVELES_IMPACTO, NIVELES_URGENCIA, type Cliente } from '@/types/domain';
 
 function Step({ n, title, icon, done, children, disabled }: {
@@ -298,6 +298,7 @@ function NewOrderForm() {
                 required
                 type="date"
                 min={plusDays(0)}
+                max={maxFechaEstimada()}
                 leftIcon={<CalendarDays aria-hidden="true" />}
                 error={errors.fechaEstimada?.message}
                 {...register('fechaEstimada')}

@@ -1,11 +1,8 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import LandingPage from '@/components/islands/LandingPage';
 ---
 
 <BaseLayout title="Inicio">
-  <!-- Siempre al dashboard: si no hay sesión (demo o backend), la app redirige sola al login -->
-  <script is:inline>
-    location.replace('/dashboard');
-  </script>
-  <noscript><a href="/dashboard">Ir al sistema</a></noscript>
+  <LandingPage client:only="react" />
 </BaseLayout>

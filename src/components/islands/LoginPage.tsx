@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -43,9 +43,11 @@ function RealLogin() {
     });
     // Sistema recién instalado: todavía no hay con qué entrar
     void apiClient.getSetupStatus().then((s) => {
-      if (!s.cuentaCreada) window.location.replace('/registro');
+      if (s.talleres === 0) window.location.replace('/registro');
+      else setRegistroAbierto(s.registroAbierto);
     }, () => undefined);
   }, []);
+  const [registroAbierto, setRegistroAbierto] = useState(false);
 
   const {
     register, handleSubmit, setError, formState: { errors, isSubmitting },
@@ -93,6 +95,14 @@ function RealLogin() {
         <Button type="submit" size="lg" loading={isSubmitting} leftIcon={<LogIn aria-hidden="true" />}>
           Ingresar
         </Button>
+        {registroAbierto && (
+          <p className="text-center text-sm text-muted">
+            ¿Taller nuevo? <a href="/registro" className="font-semibold text-primary hover:underline">Crear cuenta</a>
+          </p>
+        )}
+        <p className="text-center text-xs">
+          <a href="/" className="text-muted hover:underline">Volver a la portada</a>
+        </p>
         {import.meta.env.DEV && (
           <p className="text-center text-xs text-muted">
             Desarrollo: los usuarios iniciales están en <code className="font-mono">backend/README.md</code>.

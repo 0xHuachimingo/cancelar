@@ -7,7 +7,7 @@
  */
 import type {
   AlertsData, ApiClient, CreateClientInput, CreateEquipmentInput, CreateOrderInput, CreateServiceInput, CreateUserInput,
-  DashboardData, EvidenceInput, OrderFilters, ResolveEscalationInput, ServicioAdmin, SetupProgress, SetupStatus,
+  DashboardData, EvidenceInput, OrderFilters, ResolveEscalationInput, MySetup, ServicioAdmin, SetupProgress, SetupStatus,
   UpdateOrderInput, UpdateServiceInput, UpdateTallerInput, UpdateUserInput, UsuarioAdmin,
 } from './apiClient';
 import { handleUnauthorized } from '@/lib/auth/mockCurrentUser';
@@ -81,6 +81,14 @@ export class HttpApiClient implements ApiClient {
 
   getSetupStatus() {
     return this.request<SetupStatus>('GET', '/setup/status');
+  }
+
+  getMySetup() {
+    return this.request<MySetup>('GET', '/setup/mine');
+  }
+
+  resetDatabase() {
+    return this.request<void>('POST', '/dev/reset', { body: { confirmacion: 'BORRAR' } });
   }
 
   getSetupProgress() {

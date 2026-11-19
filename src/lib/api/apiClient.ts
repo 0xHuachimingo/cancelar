@@ -126,10 +126,19 @@ export interface AlertsData {
   escaladas: OrdenResumen[];
 }
 
+/** Público: talleres registrados y si se puede registrar otro. */
 export interface SetupStatus {
-  cuentaCreada: boolean;
+  talleres: number;
+  maxTalleres: number;
+  registroAbierto: boolean;
+  /** Solo pruebas: está habilitado «Borrar toda la base». */
+  resetHabilitado: boolean;
+}
+
+/** El taller del usuario con sesión. */
+export interface MySetup {
   configurado: boolean;
-  tallerNombre: string | null;
+  tallerNombre: string;
 }
 
 export interface SetupProgress {
@@ -181,6 +190,9 @@ export interface UpdateServiceInput {
 
 export interface ApiClient {
   getSetupStatus(): Promise<SetupStatus>;
+  getMySetup(): Promise<MySetup>;
+  /** SOLO PRUEBAS: borra todos los datos. */
+  resetDatabase(): Promise<void>;
   getSetupProgress(): Promise<SetupProgress>;
   updateTaller(input: UpdateTallerInput): Promise<SetupProgress>;
   completeSetup(): Promise<SetupProgress>;
@@ -411,8 +423,14 @@ const soloBackend = () => Promise.reject<never>(new ApiError('FORBIDDEN', 'No di
 
 class MockApiClient implements ApiClient {
   getSetupStatus() {
-    return Promise.resolve<SetupStatus>({ cuentaCreada: true, configurado: true, tallerNombre: null });
+    return Promise.resolve<SetupStatus>({ talleres: 1, maxTalleres: 5, registroAbierto: false, resetHabilitado: false });
   }
+
+  getMySetup() {
+    return Promise.resolve<MySetup>({ configurado: true, tallerNombre: 'Demo' });
+  }
+
+  resetDatabase = soloBackend;
 
   getSetupProgress = soloBackend;
   updateTaller = soloBackend;
