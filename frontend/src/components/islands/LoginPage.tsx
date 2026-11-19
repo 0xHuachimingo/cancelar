@@ -43,7 +43,7 @@ function RealLogin() {
     });
     // Sistema recién instalado: todavía no hay con qué entrar
     void apiClient.getSetupStatus().then((s) => {
-      if (s.talleres === 0) window.location.replace('/registro');
+      if (!s.hayTalleres) window.location.replace('/registro');
       else setRegistroAbierto(s.registroAbierto);
     }, () => undefined);
   }, []);

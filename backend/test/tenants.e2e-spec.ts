@@ -1,5 +1,5 @@
 /**
- * Varios talleres: cada uno ve solo sus datos y hay un máximo de 5.
+ * Varios talleres: cada uno ve solo sus datos y se pueden registrar sin límite.
  * Esquema propio de PostgreSQL (e2e_tenants), sin datos de desarrollo.
  */
 import { execSync } from 'node:child_process';
@@ -101,12 +101,11 @@ describe('Varios talleres (e2e)', () => {
     await t2.admin.patch(`/api/orders/${b.orden.id}`).send({ tecnicoId: t1.adminId }).expect(400);
   });
 
-  it('admite hasta 5 talleres', async () => {
-    for (const n of [3, 4, 5]) await taller(n);
-    const s = (await anon().get('/api/setup/status').expect(200)).body as { talleres: number; registroAbierto: boolean };
-    expect(s).toMatchObject({ talleres: 5, registroAbierto: false });
-    const r = await anon().post('/api/auth/register').send({ tallerNombre: 'Sexto', nombre: 'Seis', email: 'seis@talleres.com', password: clave }).expect(409);
-    expect((r.body as { message: string }).message).toBe('Se alcanzó el máximo de 5 talleres');
+  it('no hay límite de talleres', async () => {
+    // 3 a 8: más que el viejo máximo de 5 (el registro admite 10 por minuto por IP)
+    for (const n of [3, 4, 5, 6, 7, 8]) await taller(n); // cada registro tiene que responder 201
+    // El estado público no dice cuántos talleres hay
+    expect((await anon().get('/api/setup/status').expect(200)).body).toEqual({ hayTalleres: true, registroAbierto: true });
   });
 
 });

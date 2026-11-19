@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/Input';
 import { apiClient } from '@/lib/api/apiClient';
 import { isMockApi } from '@/lib/api/config';
 import { signUp } from '@/lib/auth/mockCurrentUser';
-import { MAX_TALLERES } from '@/lib/workflow/setup';
 import { PASSWORD_HINT } from '@/schemas/common';
 import { registerSchema, type RegisterInput } from '@/schemas/login.schema';
 import { LoginLayout } from './LoginPage';
@@ -42,7 +41,7 @@ export default function RegisterPage() {
     return (
       <LoginLayout
         title="Crear cuenta"
-        subtitle={isMockApi ? 'La demo no tiene registro: entrá con un rol de prueba.' : `Ya hay ${MAX_TALLERES} talleres registrados, el máximo de esta instalación.`}
+        subtitle={isMockApi ? 'La demo no tiene registro: entrá con un rol de prueba.' : 'El registro de talleres nuevos está cerrado por el momento.'}
       >
         <div className="mt-8">
           <LinkButton href="/login">Ir a iniciar sesión</LinkButton>

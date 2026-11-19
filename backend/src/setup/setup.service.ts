@@ -7,7 +7,7 @@ import { WorkflowException } from '../common/errors';
 import { toServicio } from '../common/mappers';
 import type { Env } from '../config/env';
 import { ROL_LABEL } from '../domain/labels';
-import { MAX_TALLERES, rolesFaltantes } from '../domain/setup';
+import { rolesFaltantes } from '../domain/setup';
 import type { Servicio, Usuario } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
 import { corteDeSesiones } from '../auth/sessions';
@@ -27,12 +27,9 @@ export class SetupService {
 
   /** Público: para la portada y el registro. */
   async status() {
-    const talleres = await this.prisma.taller.count();
-    return {
-      talleres,
-      maxTalleres: MAX_TALLERES,
-      registroAbierto: talleres < MAX_TALLERES,
-    };
+    // Solo si hay alguno (para llevar al registro en una instalación nueva): cuántos son no es público
+    const hayTalleres = (await this.prisma.taller.findFirst({ select: { id: true } })) !== null;
+    return { hayTalleres, registroAbierto: true };
   }
 
   /** El taller del usuario: si ya terminó la configuración inicial. */

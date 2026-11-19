@@ -29,7 +29,6 @@ export default function LandingPage() {
     void loadSession().then(setUser);
   }, []);
 
-  const libres = status ? status.maxTalleres - status.talleres : null;
   const puedeRegistrar = !isMockApi && status?.registroAbierto === true;
 
   return (
@@ -75,12 +74,10 @@ export default function LandingPage() {
               </>
             )}
           </div>
-          {!isMockApi && status && (
+          {puedeRegistrar && !user && (
             <p className="mt-4 flex items-center gap-2 text-sm text-muted">
               <Building2 className="size-4" aria-hidden="true" />
-              {libres && libres > 0
-                ? `Quedan ${libres} de ${status.maxTalleres} lugares para talleres.`
-                : `Los ${status.maxTalleres} lugares para talleres están ocupados.`}
+              Cada taller tiene su propia cuenta y solo ve sus datos.
             </p>
           )}
         </section>

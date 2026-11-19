@@ -1,5 +1,4 @@
 import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { MAX_TALLERES } from '../domain/setup';
 import { SERVICIOS_INICIALES } from '../domain/servicios';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -33,11 +32,6 @@ export class AuthService {
     const passwordHash = await argon2.hash(dto.password);
     try {
       const user = await this.prisma.$transaction(async (tx) => {
-        // Un registro a la vez: así dos personas no pasan juntas el límite de talleres
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(7311)`;
-        if ((await tx.taller.count()) >= MAX_TALLERES) {
-          throw new ConflictException(`Se alcanzó el máximo de ${MAX_TALLERES} talleres`);
-        }
         if (await tx.usuario.findUnique({ where: { email: dto.email } })) throw new ConflictException('Ese email ya está en uso');
         const taller = await tx.taller.create({ data: { nombre: dto.tallerNombre } });
         await tx.servicio.createMany({ data: SERVICIOS_INICIALES.map((s) => ({ ...s, tallerId: taller.id })) });

@@ -58,8 +58,8 @@ describe('Configuración inicial (e2e)', () => {
   });
 
   it('una instalación nueva no tiene talleres', async () => {
-    const s = (await anon().get('/api/setup/status').expect(200)).body as { talleres: number; registroAbierto: boolean };
-    expect(s).toMatchObject({ talleres: 0, maxTalleres: 5, registroAbierto: true });
+    const s = (await anon().get('/api/setup/status').expect(200)).body as { hayTalleres: boolean; registroAbierto: boolean };
+    expect(s).toEqual({ hayTalleres: false, registroAbierto: true });
     await anon().get('/api/setup/users').expect(401);
   });
 

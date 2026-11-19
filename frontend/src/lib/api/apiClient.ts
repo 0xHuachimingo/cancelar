@@ -126,10 +126,9 @@ export interface AlertsData {
   escaladas: OrdenResumen[];
 }
 
-/** Público: talleres registrados y si se puede registrar otro. */
+/** Público: si ya hay algún taller y si se pueden registrar talleres nuevos. */
 export interface SetupStatus {
-  talleres: number;
-  maxTalleres: number;
+  hayTalleres: boolean;
   registroAbierto: boolean;
 }
 
@@ -419,7 +418,7 @@ const soloBackend = () => Promise.reject<never>(new ApiError('FORBIDDEN', 'No di
 
 class MockApiClient implements ApiClient {
   getSetupStatus() {
-    return Promise.resolve<SetupStatus>({ talleres: 1, maxTalleres: 5, registroAbierto: false });
+    return Promise.resolve<SetupStatus>({ hayTalleres: true, registroAbierto: false });
   }
 
   getMySetup() {
