@@ -23,7 +23,6 @@ import { useClients } from '@/hooks/useClients';
 import { useEquipment } from '@/hooks/useEquipment';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { errorMessage, isApiError } from '@/lib/api/errors';
-import { now } from '@/lib/clock';
 import { cn } from '@/lib/cn';
 import { IMPACTO_LABEL, rolesLabel, TIPO_EQUIPO_LABEL, URGENCIA_LABEL } from '@/lib/domain/labels';
 import { formatMoney } from '@/lib/format';
@@ -62,7 +61,7 @@ function Step({ n, title, icon, done, children, disabled }: {
 }
 
 function plusDays(days: number): string {
-  return localDate(now() + days * 86_400_000);
+  return localDate(Date.now() + days * 86_400_000);
 }
 
 function NewOrderForm() {

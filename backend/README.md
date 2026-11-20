@@ -9,7 +9,7 @@ API del sistema de workflow para el servicio técnico de PC y notebooks. Impleme
 ## Índice
 
 1. [Puesta en marcha](#puesta-en-marcha)
-2. [Usuarios iniciales](#usuarios-iniciales)
+2. [Primera cuenta](#primera-cuenta)
 3. [Comandos](#comandos)
 4. [Arquitectura](#arquitectura)
 5. [Primer uso](#primer-uso)
@@ -64,14 +64,10 @@ Editá `.env`: en `DATABASE_URL` reemplazá `CONTRASENA` por la contraseña de P
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Creá la base y las tablas con las migraciones, y cargá los usuarios y servicios iniciales:
+Creá la base y las tablas con las migraciones:
 
 ```bash
 npx prisma migrate deploy
-```
-
-```bash
-npm run db:seed
 ```
 
 Levantá la API:
@@ -92,27 +88,11 @@ En `frontend/.env`:
 PUBLIC_API_URL=http://localhost:3000/api
 ```
 
-Reiniciá `npm run dev` en el frontend. Sin esa variable, el frontend vuelve al modo demo (datos en el navegador).
+Reiniciá `npm run dev` en el frontend. La variable es obligatoria: sin ella el frontend no compila.
 
-## Usuarios iniciales
+## Primera cuenta
 
-**Uso real:** base vacía; cada taller se registra desde la portada (los servicios se crean al registrarlo):
-
-```bash
-SEED_USERS=false npm run db:seed
-```
-
-**Desarrollo:** la semilla (`prisma/seed.ts`) crea el taller 1 («Taller de desarrollo») ya configurado, con estos usuarios y los servicios iniciales. Contraseña de desarrollo: `demo1234` (configurable con la variable `SEED_PASSWORD` antes de correr la semilla).
-
-| Rol | Nombre | Email |
-|---|---|---|
-| Admin | Laura Méndez | admin@serviciotecnico.local |
-| Supervisor | Ana Ríos | supervisor@serviciotecnico.local |
-| Recepción | Martín Sosa | recepcion@serviciotecnico.local |
-| Técnico | Carlos Ibáñez | carlos@serviciotecnico.local |
-| Técnico | Julieta Paz | julieta@serviciotecnico.local |
-
-También crea el catálogo de 7 servicios. **No crea clientes, equipos ni órdenes**: el sistema arranca vacío.
+La base arranca vacía: no hay usuarios ni contraseñas por defecto. Cada taller se crea desde la portada del frontend («Crear cuenta de taller»): quien la crea queda como Admin y el taller recibe el catálogo de 7 servicios. Después, el Admin agrega a las demás personas desde Configuración y asigna todos los roles antes de usar el sistema.
 
 ## Comandos
 
@@ -126,8 +106,7 @@ También crea el catálogo de 7 servicios. **No crea clientes, equipos ni órden
 | `npm run test:e2e` | Prueba del ciclo completo en esquemas temporales de PostgreSQL (`e2e_*`) |
 | `npm run db:migrate` | Crea una migración nueva tras cambiar `prisma/schema.prisma` (desarrollo) |
 | `npm run db:deploy` | Aplica migraciones pendientes (producción) |
-| `npm run db:seed` | Crea los usuarios y servicios que falten (nunca modifica los existentes). Con `SEED_USERS=false` no carga nada |
-| `npm run db:reset` | **Borra la base** y la recrea con migraciones + semilla |
+| `npm run db:reset` | **Borra la base** y la recrea vacía con las migraciones (solo desarrollo) |
 | `npm run db:studio` | Prisma Studio: ver y editar datos en el navegador |
 
 ## Arquitectura
@@ -136,8 +115,7 @@ También crea el catálogo de 7 servicios. **No crea clientes, equipos ni órden
 prisma/
 ├── schema.prisma          Modelo de datos (Usuario, Cliente, Equipo, Servicio, Orden, Evidencia,
 │                          Historial, InformeCritico, Contador)
-├── migrations/            Migraciones SQL versionadas
-└── seed.ts                Usuarios y servicios iniciales
+└── migrations/            Migraciones SQL versionadas
 src/
 ├── main.ts                Arranque + Swagger
 ├── setup.ts               Prefijo /api, helmet, cookies, CORS, ValidationPipe, filtro de errores
@@ -259,7 +237,7 @@ Las reglas están en `src/domain/validation.ts` (copia en `frontend/src/lib/work
 - Sesión: JWT firmado en cookie **HTTP-only**, `SameSite=Lax`, `Secure` con `COOKIE_SECURE=true`. Duración: `JWT_EXPIRES_IN`. Solo se acepta **HS256**: un token con otro algoritmo, o con `none`, se rechaza.
 - **Cerrar sesión invalida el token** (tabla `SesionCerrada`, por `jti`): si alguien lo copió, deja de servirle en ese momento. Las filas se borran solas cuando el token habría vencido.
 - **CSRF** (`src/common/origin.ts`): `POST`, `PATCH` y `DELETE` solo se aceptan si `Origin` es `CORS_ORIGIN` o la propia API. Sin `Origin` (curl, pruebas) solo se rechaza si `Sec-Fetch-Site` dice `cross-site`. Complementa a `SameSite=Lax`, que no frena a otro puerto o subdominio del mismo sitio.
-- **Producción** (`NODE_ENV=production`): el backend no arranca con `COOKIE_SECURE=false`, con orígenes sin `https://` ni con sesiones de más de 7 días, y la semilla se niega a crear usuarios de prueba.
+- **Producción** (`NODE_ENV=production`): el backend no arranca con `COOKIE_SECURE=false`, con orígenes sin `https://` ni con sesiones de más de 7 días.
 - **Registro de seguridad** (logger `Seguridad`, una línea JSON por evento): logins fallidos y exitosos, tokens inválidos o cerrados reutilizados, accesos denegados (403), límites superados (429), orígenes rechazados, usuarios creados o modificados, cambios de contraseña y evidencias rechazadas. El email va oculto (`a***@dominio`) y nunca se registran contraseñas ni tokens. Al ser JSON, un valor con saltos de línea no puede inventar líneas falsas.
 - Registro de talleres: 10 por minuto y 20 por hora por IP, para que nadie llene la base de talleres falsos.
 - El usuario se vuelve a leer de la base en cada request: desactivar un usuario (`activo = false`) corta su acceso al instante.
@@ -274,7 +252,7 @@ Las reglas están en `src/domain/validation.ts` (copia en `frontend/src/lib/work
   - **Guardado**: nombre aleatorio y extensión del tipo verificado, nunca la del nombre original (un `shell.php` se guarda `.jpg`), y nunca fuera de `UPLOAD_DIR`. El nombre visible se limpia de carpetas, saltos de línea y caracteres invisibles (por ejemplo, la inversión de texto que disfraza `fdp.exe`).
   - **Descarga aislada**: `Content-Security-Policy: default-src 'none'; sandbox` y `nosniff`, así que aunque algo se colara el navegador no ejecuta scripts ni accede a la sesión. Los PDF se descargan (`attachment`) en lugar de abrirse dentro del sitio.
 - `ValidationPipe` con `whitelist`: los campos que no están en el DTO se descartan (ej. un `prioridad` enviado por el cliente).
-- **Inyección SQL**. Todas las consultas pasan por Prisma, que manda los valores como parámetros separados del SQL: un `' OR 1=1 --` se busca o se guarda como texto. `src/common/sql.spec.ts` revisa el código, la semilla y las pruebas, y falla si alguien agrega `$queryRawUnsafe`, `$executeRawUnsafe` o `Prisma.raw`. El SQL directo que queda usa plantillas con parámetros: el chequeo de salud y la secuencia de `Taller` en la semilla. La limpieza de pruebas solo acepta esquemas `e2e_…` y los escapa con `escapeIdentifier`. Los comodines de `LIKE` (`%`, `_`) se escapan para que se busquen como texto. Las pruebas e2e mandan SQL en búsquedas, login, ids de la URL y datos.
+- **Inyección SQL**. Todas las consultas pasan por Prisma, que manda los valores como parámetros separados del SQL: un `' OR 1=1 --` se busca o se guarda como texto. `src/common/sql.spec.ts` revisa el código y las pruebas, y falla si alguien agrega `$queryRawUnsafe`, `$executeRawUnsafe` o `Prisma.raw`. El SQL directo que queda usa plantillas con parámetros: el chequeo de salud y la secuencia de `Taller` en los datos de prueba. La limpieza de pruebas solo acepta esquemas `e2e_…` y los escapa con `escapeIdentifier`. Los comodines de `LIKE` (`%`, `_`) se escapan para que se busquen como texto. Las pruebas e2e mandan SQL en búsquedas, login, ids de la URL y datos.
 - Errores: nunca devuelven trazas ni rutas internas; un cuerpo JSON demasiado grande responde 413.
 - Documentación interactiva (`/api/docs`): solo fuera de producción (`NODE_ENV=production` la apaga).
 - Dependencias: `npm audit --omit=dev` sin vulnerabilidades al 19/11/2026. Las que reporta `npm audit` completo son de herramientas de desarrollo (pruebas y compilación), que no se despliegan.
@@ -289,12 +267,12 @@ npm test
 npm run test:e2e
 ```
 
-Necesitan PostgreSQL corriendo. Cada archivo usa su propio esquema (`e2e_workflow`, `e2e_edge`) dentro de la base de `TEST_DATABASE_URL` o, si no está definida, de `DATABASE_URL`; nunca toca `public`. Cada archivo borra y recrea su esquema, aplica migraciones y semilla. `security.e2e-spec.ts` cubre seguridad y validaciones: rutas sin sesión, tokens falsificados o vencidos, permisos por rol, campos que el cliente no debe controlar, inyección SQL y comodines, `__proto__`, HTML guardado como texto, firma y tamaño de archivos, `../` en nombres, cabeceras, errores sin detalles internos, corte de sesiones, fuerza bruta y los límites de cada campo. Al terminar, cada archivo borra su esquema y su carpeta de evidencias: no quedan datos de prueba. `escalation.e2e-spec.ts` cubre niveles, ciclo, sin reparación, entrega y escalamiento automático; `setup.e2e-spec.ts`, el primer uso, los varios roles y las validaciones de datos. `workflow.e2e-spec.ts` recorre con los cuatro roles: alta de cliente/equipo/orden, visibilidad del Técnico, reglas con 422, bloqueo y desbloqueo, escalado, evidencia con archivo real, validación, cierre, reapertura, historial completo, crítica > 24 h en el dashboard y límite de intentos de login.
+Necesitan PostgreSQL corriendo. Cada archivo usa su propio esquema (`e2e_workflow`, `e2e_edge`) dentro de la base de `TEST_DATABASE_URL` o, si no está definida, de `DATABASE_URL`; nunca toca `public`. Cada archivo borra y recrea su esquema, aplica migraciones y carga sus datos de prueba (`test/seed-pruebas.ts`, que solo corre en esquemas `e2e_…`). `security.e2e-spec.ts` cubre seguridad y validaciones: rutas sin sesión, tokens falsificados o vencidos, permisos por rol, campos que el cliente no debe controlar, inyección SQL y comodines, `__proto__`, HTML guardado como texto, firma y tamaño de archivos, `../` en nombres, cabeceras, errores sin detalles internos, corte de sesiones, fuerza bruta y los límites de cada campo. Al terminar, cada archivo borra su esquema y su carpeta de evidencias: no quedan datos de prueba. `escalation.e2e-spec.ts` cubre niveles, ciclo, sin reparación, entrega y escalamiento automático; `setup.e2e-spec.ts`, el primer uso, los varios roles y las validaciones de datos. `workflow.e2e-spec.ts` recorre con los cuatro roles: alta de cliente/equipo/orden, visibilidad del Técnico, reglas con 422, bloqueo y desbloqueo, escalado, evidencia con archivo real, validación, cierre, reapertura, historial completo, crítica > 24 h en el dashboard y límite de intentos de login.
 
 ## Antes de producción
 
 - `JWT_SECRET` nuevo y largo; `COOKIE_SECURE=true` detrás de HTTPS; `CORS_ORIGIN` con el dominio real; `NODE_ENV=production`.
 - Cabeceras de seguridad para el frontend en el servidor web o proxy (casi todas sus páginas son estáticas): `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` y HSTS.
-- Cambiar las contraseñas de los usuarios iniciales o crearlos con `SEED_PASSWORD` propio.
+- No hay usuarios por defecto: la primera cuenta se crea desde la portada.
 - Respaldos periódicos de PostgreSQL (`pg_dump`) y de `UPLOAD_DIR`. Un usuario de base propio para la app en lugar de `postgres`.
-- `npm run build` y `npm run db:deploy` en el servidor; ejecutar con `npm run start:prod` (o un gestor de procesos).
+- `npm run build` y `npm run db:deploy` en el servidor; ejecutar con `npm run start:prod` (o un gestor de procesos). Pasos completos en `../DEPLOY.md`.

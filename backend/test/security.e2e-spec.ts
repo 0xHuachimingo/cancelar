@@ -54,7 +54,7 @@ describe('Seguridad y validaciones (e2e)', () => {
     await dropTestSchema(process.env.DATABASE_URL!);
     rmSync(resolve(root, process.env.UPLOAD_DIR!), { recursive: true, force: true });
     run('npx prisma migrate deploy');
-    run('npx tsx prisma/seed.ts');
+    run('npx tsx test/seed-pruebas.ts');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     configureApp(app);

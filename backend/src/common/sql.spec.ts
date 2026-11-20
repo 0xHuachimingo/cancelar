@@ -24,7 +24,7 @@ describe('consultas SQL', () => {
   it('ningún archivo arma SQL concatenando texto', () => {
     const lista = CARPETAS.flatMap(archivos);
     expect(lista.length).toBeGreaterThan(20);
-    expect(lista.some((f) => f.endsWith('seed.ts'))).toBe(true);
+    expect(lista.some((f) => f.endsWith('seed-pruebas.ts'))).toBe(true);
     const culpables = lista.filter((f) => PROHIBIDO.test(readFileSync(f, 'utf8'))).map((f) => relative(RAIZ, f));
     expect(culpables).toEqual([]);
   });

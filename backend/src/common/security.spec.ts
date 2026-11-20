@@ -156,6 +156,11 @@ describe('configuración de producción', () => {
     expect(() => validateEnv({ ...prod, CORS_ORIGIN: 'https://taller.com,http://taller.com' })).toThrow(/https/);
     expect(() => validateEnv({ ...prod, JWT_EXPIRES_IN: '30d' })).toThrow(/JWT_EXPIRES_IN/);
   });
+  it('TRUST_PROXY: por defecto 0 (nadie puede falsear la IP); solo enteros chicos', () => {
+    expect(validateEnv(prod).TRUST_PROXY).toBe(0);
+    expect(validateEnv({ ...prod, TRUST_PROXY: '1' }).TRUST_PROXY).toBe(1);
+    for (const v of ['-1', '1.5', 'true', '99']) expect(() => validateEnv({ ...prod, TRUST_PROXY: v })).toThrow(/TRUST_PROXY/);
+  });
   it('en desarrollo se permite http y cookie sin Secure', () => {
     expect(validateEnv({ ...prod, NODE_ENV: 'development', COOKIE_SECURE: 'false', CORS_ORIGIN: 'http://localhost:4321' }).COOKIE_SECURE).toBe(false);
   });

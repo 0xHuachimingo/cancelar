@@ -11,6 +11,12 @@ export interface Env {
   COOKIE_SECURE: boolean;
   UPLOAD_DIR: string;
   UPLOAD_MAX_MB: number;
+  /**
+   * Cantidad de proxies (Nginx, Caddy, balanceador) delante de la API. Con 1, la IP del cliente
+   * se toma de X-Forwarded-For; sin eso, todos los pedidos parecen venir del proxy y los límites
+   * de login por IP se aplicarían a todos juntos. 0 = sin proxy (nadie puede falsear la IP).
+   */
+  TRUST_PROXY: number;
 }
 
 /** "8h", "30m", "45s", "2d" o segundos. */
@@ -29,6 +35,12 @@ function uploadMaxMb(value: string): number {
     throw new Error(`UPLOAD_MAX_MB debe ser un número entre 0 y ${MAX_EVIDENCIA_MB} (MB)`);
   }
   return mb;
+}
+
+function trustProxy(value: string): number {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0 || n > 5) throw new Error('TRUST_PROXY debe ser un número entero entre 0 y 5 (proxies delante de la API)');
+  return n;
 }
 
 export function validateEnv(raw: Record<string, unknown>): Env {
@@ -51,6 +63,7 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     COOKIE_SECURE: str('COOKIE_SECURE', 'false') === 'true',
     UPLOAD_DIR: str('UPLOAD_DIR', 'uploads'),
     UPLOAD_MAX_MB: uploadMaxMb(str('UPLOAD_MAX_MB', String(MAX_EVIDENCIA_MB))),
+    TRUST_PROXY: trustProxy(str('TRUST_PROXY', '0')),
   };
   if (raw.NODE_ENV === 'production') validarProduccion(env);
   return env;
