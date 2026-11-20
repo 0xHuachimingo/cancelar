@@ -111,7 +111,7 @@ function Detail({ id }: { id: string }) {
     return (
       <div className="space-y-4" aria-hidden="true">
         <Skeleton className="h-24" />
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <Skeleton className="h-96" />
           <Skeleton className="h-96" />
         </div>
@@ -329,7 +329,7 @@ function Detail({ id }: { id: string }) {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         {/* Pestañas */}
         <Card className="min-w-0 p-4">
           <Tabs

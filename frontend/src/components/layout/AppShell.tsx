@@ -97,8 +97,11 @@ function ShellInner({ currentPath, permission, title, description, actions, cust
       <WindowTitleBar title={title} />
       <div className="flex min-h-0 flex-1">
         <Sidebar currentPath={currentPath} counts={counts} mobileOpen={menuOpen} onMobileClose={closeMenu} />
-        {/* Con el menú móvil abierto el resto queda inerte: el foco no puede escaparse del menú */}
-        <div data-scroll-root inert={menuOpen} className="flex min-w-0 flex-1 flex-col classic:overflow-y-auto">
+        {/* Con el menú móvil abierto el resto queda inerte: el foco no puede escaparse del menú.
+            «relative»: los controles ocultos (sr-only, position absolute) quedan dentro de este
+            contenedor con scroll; sin eso, en el estilo clásico estiraban la página entera y al
+            elegir una opción la ventana se corría y dejaba una franja negra abajo. */}
+        <div data-scroll-root inert={menuOpen} className="relative flex min-w-0 flex-1 flex-col classic:overflow-y-auto">
           <Topbar onOpenMenu={() => setMenuOpen(true)} />
           <main id="contenido" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 focus:outline-none md:px-6 classic:py-4">
             <div className="mb-4 sm:hidden">

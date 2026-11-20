@@ -52,7 +52,7 @@ export function EquipmentForm({ idPrefix = 'ef', clienteId, defaultClienteId, cl
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="@container flex flex-col gap-4">
       {errors.root?.message && (
         <p role="alert" className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
@@ -73,7 +73,7 @@ export function EquipmentForm({ idPrefix = 'ef', clienteId, defaultClienteId, cl
           {...register('clienteId')}
         />
       )}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 @md:grid-cols-2">
         <Select
           id={`${idPrefix}-tipo`}
           label="Tipo"
