@@ -10,7 +10,7 @@ import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { dropTestSchema, fakeJpeg, fakePng, testDatabaseUrl } from './test-db';
+import { dropTestSchema, fakeJpeg, fakePdf, fakePng, testDatabaseUrl } from './test-db';
 
 process.env.DATABASE_URL = testDatabaseUrl('e2e_security');
 process.env.UPLOAD_DIR = 'uploads-test-security';
@@ -19,6 +19,7 @@ process.env.UPLOAD_MAX_MB = '1';
 
 import { AppModule } from '../src/app.module';
 import { LOGIN_POR_IP } from '../src/auth/auth.controller';
+import { MENSAJES_EVIDENCIA } from '../src/orders/evidence.signature';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { configureApp } from '../src/setup';
 
@@ -113,10 +114,25 @@ describe('Seguridad y validaciones (e2e)', () => {
       const real = new JwtService({ secret: process.env.JWT_SECRET });
       const vencido = await real.signAsync({ sub: adminId, iat: ahora - 7200, exp: ahora - 3600 });
       const fantasma = await real.signAsync({ sub: 'usuario-que-no-existe' });
-      for (const token of [sinFirma, otraClave, vencido, fantasma, 'basura', '']) {
+      // Firmado con la clave real pero con otro algoritmo: solo se acepta HS256
+      const otroAlgoritmo = await real.signAsync({ sub: adminId }, { algorithm: 'HS512' });
+      for (const token of [sinFirma, otraClave, vencido, fantasma, otroAlgoritmo, 'basura', '']) {
         await anon().get('/api/auth/me').set('Authorization', `Bearer ${token}`).expect(401);
         await anon().get('/api/auth/me').set('Cookie', `st_session=${token}`).expect(401);
       }
+    });
+
+    it('cerrar sesión invalida el token aunque alguien lo haya copiado', async () => {
+      const agente = request.agent(app.getHttpServer());
+      const res = await agente.post('/api/auth/login').send({ email: 'supervisor@serviciotecnico.local', password: 'demo1234' }).expect(200);
+      const copia = /st_session=([^;]+)/.exec(String(res.headers['set-cookie']))![1]!;
+      await anon().get('/api/auth/me').set('Cookie', `st_session=${copia}`).expect(200);
+      await agente.post('/api/auth/logout').expect(204);
+      await anon().get('/api/auth/me').set('Cookie', `st_session=${copia}`).expect(401);
+      await anon().get('/api/auth/me').set('Authorization', `Bearer ${copia}`).expect(401);
+      // Las demás sesiones de esa persona siguen abiertas
+      await sup.get('/api/auth/me').expect(200);
+      expect(await prisma.sesionCerrada.count()).toBeGreaterThan(0);
     });
 
     it('ninguna respuesta incluye contraseñas ni hashes', async () => {
@@ -188,6 +204,26 @@ describe('Seguridad y validaciones (e2e)', () => {
       expect(await prisma.orden.count()).toBeGreaterThan(0);
     });
 
+    it('SQL en el login, en la URL y en los datos no se ejecuta', async () => {
+      const antes = { ordenes: await prisma.orden.count(), usuarios: await prisma.usuario.count() };
+      // Login: el clásico «' OR 1=1 --» no entra (es un email inválido o simplemente no coincide)
+      for (const email of ["' OR 1=1 --", "admin@serviciotecnico.local' --", 'x@x.com\' OR \'1\'=\'1']) {
+        expect([400, 401]).toContain((await anon().post('/api/auth/login').send({ email, password: "' OR '1'='1" })).status);
+      }
+      // Ids en la URL: SQL en lugar de un id da 404, nunca 500 ni datos
+      for (const id of ["1' OR '1'='1", '1; DROP TABLE "Orden"; --', "' UNION SELECT * FROM \"Usuario\" --"]) {
+        const res = await recep.get(`/api/orders/${encodeURIComponent(id)}`);
+        expect([id, res.status]).toEqual([id, 404]);
+      }
+      // Datos: se guardan tal cual, como texto
+      const nombre = "Robert'); DROP TABLE \"Cliente\";--";
+      const c = (await recep.post('/api/clients').send({ nombre, telefono: telefono() }).expect(201)).body as Id & { nombre: string };
+      expect(c.nombre).toBe(nombre);
+      expect((await prisma.cliente.findUniqueOrThrow({ where: { id: c.id } })).nombre).toBe(nombre);
+      expect(await prisma.orden.count()).toBe(antes.ordenes);
+      expect(await prisma.usuario.count()).toBe(antes.usuarios);
+    });
+
     it('rechaza objetos y listas donde va texto', async () => {
       await anon().post('/api/auth/login').send({ email: { $ne: null }, password: { $ne: null } }).expect(400);
       await anon().post('/api/auth/login').send({ email: ['admin@serviciotecnico.local'], password: 'demo1234' }).expect(400);
@@ -228,7 +264,44 @@ describe('Seguridad y validaciones (e2e)', () => {
       expect(((await subir(tec, Buffer.from('<html><script>alert(1)</script></html>'), 'foto.jpg', 'image/jpeg').expect(400)).body as ErrBody).message).toBe(msg);
       expect(((await subir(tec, fakePng(), 'foto.jpg', 'image/jpeg').expect(400)).body as ErrBody).message).toBe(msg); // PNG declarado como JPG
       await subir(tec, Buffer.from('MZ ejecutable'), 'programa.exe', 'application/octet-stream').expect(400);
-      await subir(tec, Buffer.from('%PDF-1.7\n%prueba'), 'presupuesto.pdf', 'application/pdf').expect(201);
+      await subir(tec, fakePdf(), 'presupuesto.pdf', 'application/pdf').expect(201);
+    });
+
+    it('rechaza fotos y PDF con código o programas escondidos', async () => {
+      const motivo = async (contenido: Buffer, filename: string, tipo: string) =>
+        ((await subir(tec, contenido, filename, tipo).expect(400)).body as ErrBody).message;
+      // Foto válida con un ZIP pegado al final (políglota)
+      expect(await motivo(Buffer.concat([fakePng(), Buffer.from('PK\x03\x04programa', 'latin1')]), 'foto.png', 'image/png'))
+        .toBe(MENSAJES_EVIDENCIA.estructura);
+      // JPEG con una página web o un script PHP adentro
+      const conCodigo = (codigo: string) => { const b = fakeJpeg(200); b.write(codigo, 20, 'latin1'); return b; };
+      expect(await motivo(conCodigo('<script>fetch("/api/users")</script>'), 'foto.jpg', 'image/jpeg')).toBe(MENSAJES_EVIDENCIA.codigo);
+      expect(await motivo(conCodigo('<?php system($_GET["c"]); ?>'), 'shell.php.jpg', 'image/jpeg')).toBe(MENSAJES_EVIDENCIA.codigo);
+      expect(await motivo(conCodigo('MZ This program cannot be run in DOS mode'), 'foto.jpg', 'image/jpeg')).toBe(MENSAJES_EVIDENCIA.codigo);
+      // PDF que ejecuta JavaScript o abre un programa
+      expect(await motivo(fakePdf('<< /OpenAction << /S /JavaScript /JS (app.alert(1)) >> >>'), 'factura.pdf', 'application/pdf')).toBe(MENSAJES_EVIDENCIA.pdf);
+      expect(await motivo(fakePdf('<< /S /Launch /F (cmd.exe) >>'), 'factura.pdf', 'application/pdf')).toBe(MENSAJES_EVIDENCIA.pdf);
+      // Ninguno quedó guardado
+      expect(await prisma.evidencia.count({ where: { ordenId: orden.id, nombreArchivo: { in: ['foto.jpg', 'shell.php.jpg', 'factura.pdf'] } } })).toBe(0);
+    });
+
+    it('guarda con la extensión del tipo real y sirve el archivo aislado', async () => {
+      const res = await subir(tec, fakeJpeg(), 'shell.php\r\nX-Inyectada: 1', 'image/jpeg').expect(201);
+      const ev = (res.body as { evidencias: (Id & { nombreArchivo: string })[] }).evidencias.find((e) => e.nombreArchivo.startsWith('shell.php'))!;
+      expect(ev.nombreArchivo).toBe('shell.phpX-Inyectada: 1'); // sin saltos de línea
+      const guardada = await prisma.evidencia.findUniqueOrThrow({ where: { id: ev.id } });
+      expect(guardada.ruta).toMatch(/\.jpg$/); // nunca .php
+
+      const foto = await tec.get(`/api/orders/${orden.id}/evidence/${ev.id}/file`).expect(200);
+      expect(foto.headers['content-security-policy']).toMatch(/sandbox/);
+      expect(foto.headers['content-security-policy']).toMatch(/default-src 'none'/);
+      expect(foto.headers['content-disposition']).toMatch(/^inline;/);
+      expect(foto.headers['x-inyectada']).toBeUndefined();
+
+      const pdfRes = await subir(tec, fakePdf(), 'presupuesto-final.pdf', 'application/pdf').expect(201);
+      const pdfEv = (pdfRes.body as { evidencias: (Id & { nombreArchivo: string })[] }).evidencias.find((e) => e.nombreArchivo === 'presupuesto-final.pdf')!;
+      const pdf = await tec.get(`/api/orders/${orden.id}/evidence/${pdfEv.id}/file`).expect(200);
+      expect(pdf.headers['content-disposition']).toMatch(/^attachment;/); // se abre fuera del sitio
     });
 
     it('un nombre con ../ no sale de la carpeta de evidencias', async () => {
@@ -358,6 +431,25 @@ describe('Seguridad y validaciones (e2e)', () => {
   });
 
   // ---------------------------------------------------------------- sesiones y fuerza bruta (al final: usan logins)
+
+  describe('CSRF', () => {
+    it('lo que modifica datos solo se acepta desde el frontend', async () => {
+      const datos = () => ({ nombre: 'Cliente CSRF', telefono: telefono() });
+      // Otra página del mismo navegador (otro puerto, otro dominio o un iframe aislado): bloqueado
+      for (const origen of ['http://localhost:9999', 'https://sitio-malicioso.com', 'null']) {
+        const r = await recep.post('/api/clients').set('Origin', origen).send(datos());
+        expect([origen, r.status]).toEqual([origen, 403]);
+      }
+      await recep.post('/api/clients').set('Sec-Fetch-Site', 'cross-site').send(datos()).expect(403);
+      await recep.post('/api/auth/logout').set('Origin', 'https://sitio-malicioso.com').expect(403);
+      // Desde el frontend, o sin navegador de por medio: funciona
+      await recep.post('/api/clients').set('Origin', 'http://localhost:4321').send(datos()).expect(201);
+      await recep.post('/api/clients').set('Sec-Fetch-Site', 'same-site').send(datos()).expect(201);
+      // Leer no modifica nada: no se bloquea (CORS ya impide que otra página lea la respuesta)
+      await recep.get('/api/clients').set('Origin', 'https://sitio-malicioso.com').expect(200);
+      expect(await prisma.cliente.count({ where: { nombre: 'Cliente CSRF' } })).toBe(2);
+    });
+  });
 
   describe('sesiones y fuerza bruta', () => {
     it('cambiar la contraseña cierra las demás sesiones, y el reseteo del Admin cierra todas', async () => {

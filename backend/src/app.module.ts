@@ -15,6 +15,8 @@ import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SetupModule } from './setup/setup.module';
 
+const porIp = (req: Record<string, unknown>) => (typeof req.ip === 'string' ? req.ip : 'sin-ip');
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
@@ -24,7 +26,9 @@ import { SetupModule } from './setup/setup.module';
     // cuentas. Fuera del login el límite es inalcanzable (cada ruta lo ajusta con @Throttle).
     ThrottlerModule.forRoot([
       { ttl: 60_000, limit: 600 },
-      { name: 'ip', ttl: 60_000, limit: 1_000_000, getTracker: (req: Record<string, unknown>) => (typeof req.ip === 'string' ? req.ip : 'sin-ip') },
+      { name: 'ip', ttl: 60_000, limit: 1_000_000, getTracker: porIp },
+      // «hora»: topes por hora por IP (ej. registro de talleres); inalcanzable en las demás rutas
+      { name: 'hora', ttl: 3_600_000, limit: 1_000_000, getTracker: porIp },
     ]),
     ScheduleModule.forRoot(),
     PrismaModule,

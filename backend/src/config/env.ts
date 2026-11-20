@@ -42,7 +42,7 @@ export function validateEnv(raw: Record<string, unknown>): Env {
   if (secret.length < 32 || secret.startsWith('cambiar-por')) {
     throw new Error('JWT_SECRET debe tener al menos 32 caracteres aleatorios (ver .env.example)');
   }
-  return {
+  const env: Env = {
     PORT: Number(str('PORT', '3000')),
     DATABASE_URL: str('DATABASE_URL'),
     CORS_ORIGIN: str('CORS_ORIGIN', 'http://localhost:4321'),
@@ -52,4 +52,21 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     UPLOAD_DIR: str('UPLOAD_DIR', 'uploads'),
     UPLOAD_MAX_MB: uploadMaxMb(str('UPLOAD_MAX_MB', String(MAX_EVIDENCIA_MB))),
   };
+  if (raw.NODE_ENV === 'production') validarProduccion(env);
+  return env;
+}
+
+/** Una sesión dura como mucho esto: más tiempo es más tiempo para usar un token robado. */
+export const MAX_SESION_SEGUNDOS = 7 * 86400;
+
+/**
+ * En producción no se arranca con una configuración insegura: la cookie de sesión viajaría sin
+ * cifrar por HTTP, o se aceptarían orígenes sin HTTPS.
+ */
+function validarProduccion(env: Env): void {
+  if (!env.COOKIE_SECURE) throw new Error('En producción COOKIE_SECURE tiene que ser true (la sesión solo viaja por HTTPS)');
+  const origenes = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
+  const inseguro = origenes.find((o) => !o.startsWith('https://'));
+  if (inseguro) throw new Error(`En producción CORS_ORIGIN solo admite orígenes https:// (${inseguro} no lo es)`);
+  if (env.JWT_EXPIRES_IN > MAX_SESION_SEGUNDOS) throw new Error('En producción JWT_EXPIRES_IN no puede pasar de 7 días');
 }

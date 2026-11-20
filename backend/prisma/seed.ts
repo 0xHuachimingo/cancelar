@@ -33,13 +33,21 @@ async function main() {
     console.log('Semilla: nada que cargar (los talleres se crean desde la portada).');
     return;
   }
+  // Usuarios de prueba con contraseña conocida: nunca en producción (credenciales por defecto)
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('En producción la semilla no crea usuarios de prueba: usá SEED_USERS=false y creá el taller desde la portada.');
+  }
   const passwordHash = await argon2.hash(process.env.SEED_PASSWORD ?? 'demo1234');
   // Taller de desarrollo (id 1). Solo crea lo que falta: nunca pisa usuarios ni servicios existentes
   const taller = await prisma.taller.upsert({ where: { id: 1 }, update: {}, create: { id: 1, nombre: 'Taller de desarrollo', configurado: true } });
   // Con id explícito la secuencia no avanza: que el próximo taller no choque con este
   // SQL directo: hay que nombrar el esquema (el adaptador solo lo aplica a las consultas de Prisma)
-  const tabla = `"${new URL(url!).searchParams.get('schema') ?? 'public'}"."Taller"`;
-  await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('${tabla}', 'id'), GREATEST((SELECT MAX(id) FROM ${tabla}), 1))`);
+  // Todo va como parámetro ($1, $2): el nombre de la tabla es un dato para pg_get_serial_sequence, no SQL
+  const esquema = new URL(url!).searchParams.get('schema') ?? 'public';
+  if (!/^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(esquema)) throw new Error(`Nombre de esquema inválido en DATABASE_URL: ${esquema}`);
+  const tabla = `"${esquema}"."Taller"`;
+  const maxId = Math.max((await prisma.taller.aggregate({ _max: { id: true } }))._max.id ?? 1, 1);
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence(${tabla}::text, 'id'), ${maxId}::bigint)`;
   let nuevosUsuarios = 0;
   for (const u of USERS) {
     const existe = await prisma.usuario.findUnique({ where: { email: u.email }, select: { id: true } });

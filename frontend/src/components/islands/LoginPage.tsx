@@ -26,9 +26,20 @@ const ROLE_CARDS: readonly { rol: Rol; icon: LucideIcon; desc: string }[] = [
   { rol: 'TECNICO', icon: Wrench, desc: 'Trabaja sus órdenes asignadas' },
 ];
 
-function safeNext(): string {
-  const next = new URLSearchParams(window.location.search).get('next');
-  return next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
+/**
+ * Adónde volver después de iniciar sesión: solo páginas de este mismo sitio. Sin esto, un link
+ * como /login?next=/\otro-sitio.com (el navegador toma «/\» como «//») llevaría a una página
+ * falsa justo después de que la persona puso su contraseña.
+ */
+export function safeNext(search: string = window.location.search, origin: string = window.location.origin): string {
+  const next = new URLSearchParams(search).get('next');
+  if (!next || !next.startsWith('/') || next.startsWith('//') || /[\\\p{Cc}]/u.test(next)) return '/dashboard';
+  try {
+    const url = new URL(next, origin);
+    return url.origin === origin ? url.pathname + url.search + url.hash : '/dashboard';
+  } catch {
+    return '/dashboard';
+  }
 }
 
 export default function LoginPage() {
