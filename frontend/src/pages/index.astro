@@ -1,0 +1,8 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import LandingPage from '@/components/islands/LandingPage';
+---
+
+<BaseLayout title="Inicio">
+  <LandingPage client:only="react" />
+</BaseLayout>

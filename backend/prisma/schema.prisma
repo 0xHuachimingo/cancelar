@@ -1,0 +1,342 @@
+// Esquema de datos del servicio técnico (PostgreSQL).
+// La conexión sale de DATABASE_URL (.env), vía prisma.config.ts y src/prisma/adapter.ts.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Rol {
+  ADMIN
+  SUPERVISOR
+  RECEPCION
+  TECNICO
+}
+
+enum EstadoOrden {
+  RECIBIDO
+  EN_DIAGNOSTICO
+  EN_REPARACION
+  PRUEBAS
+  LISTO_PARA_RETIRAR
+  CERRADO
+}
+
+enum Impacto {
+  BAJO
+  MEDIO
+  ALTO
+}
+
+enum Urgencia {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+enum Prioridad {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum TipoEquipo {
+  NOTEBOOK
+  PC_ESCRITORIO
+  ALL_IN_ONE
+  OTRO
+}
+
+enum TipoAccion {
+  CREACION
+  TRANSICION
+  BLOQUEO
+  DESBLOQUEO
+  ESCALADO
+  REAPERTURA
+  VALIDACION
+  CIERRE
+  ACTUALIZACION
+  ESCALADO_TOMADO
+  ESCALADO_NIVEL
+  ESCALADO_RESUELTO
+}
+
+enum CausaEscalamiento {
+  TECNICA
+  REPUESTO
+  PRESUPUESTO
+  RECLAMO_CLIENTE
+  PLAZO
+  CRITICA_24H
+  BLOQUEO_PROLONGADO
+}
+
+enum EstadoEscalamiento {
+  ABIERTO
+  TOMADO
+  RESUELTO
+}
+
+enum ResolucionEscalamiento {
+  CONTINUAR
+  EN_ESPERA
+  NO_REPARABLE
+  RECHAZADO_CLIENTE
+}
+
+enum ResultadoOrden {
+  REPARADO
+  NO_REPARABLE
+  RECHAZADO_CLIENTE
+  ABANDONADO
+}
+
+model Usuario {
+  id            String    @id @default(cuid())
+  nombre        String
+  email         String    @unique
+  passwordHash  String
+  roles         Rol[]
+  activo        Boolean   @default(true)
+  creadoEn      DateTime  @default(now())
+  /// las sesiones (JWT) emitidas antes de esta fecha ya no valen: se fija al cambiar o resetear la contraseña y al desactivar
+  sesionesDesde DateTime?
+  /// cada persona pertenece a un solo taller (el email es único en todo el sistema: con él se ingresa)
+  tallerId      Int
+
+  taller             Taller           @relation(fields: [tallerId], references: [id], onDelete: Cascade)
+  ordenesResponsable Orden[]          @relation("Responsable")
+  ordenesTecnico     Orden[]          @relation("Tecnico")
+  ordenesValidadas   Orden[]          @relation("Validador")
+  historial          Historial[]
+  evidencias         Evidencia[]
+  informes           InformeCritico[]
+  escaladosCreados   Escalamiento[]   @relation("EscaladoCreador")
+  escaladosTomados   Escalamiento[]   @relation("EscaladoTomador")
+  escaladosResueltos Escalamiento[]   @relation("EscaladoResolutor")
+
+  @@index([tallerId])
+}
+
+/// Cada taller tiene sus propios datos: personas, clientes, equipos, servicios y órdenes.
+model Taller {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  telefono    String?
+  direccion   String?
+  /// false hasta completar la configuración inicial: sin esto no se pueden crear órdenes
+  configurado Boolean  @default(false)
+  creadoEn    DateTime @default(now())
+
+  usuarios  Usuario[]
+  clientes  Cliente[]
+  equipos   Equipo[]
+  servicios Servicio[]
+  ordenes   Orden[]
+}
+
+model Cliente {
+  id                  String   @id @default(cuid())
+  nombre              String
+  /// minúsculas y sin tildes, para búsqueda sin distinguir mayúsculas ni acentos
+  nombreNormalizado   String
+  telefono            String
+  /// solo dígitos: evita duplicados con distinto formato
+  telefonoNormalizado String
+  email               String?
+  notas               String?
+  creadoEn            DateTime @default(now())
+  tallerId            Int
+
+  taller  Taller   @relation(fields: [tallerId], references: [id], onDelete: Cascade)
+  equipos Equipo[]
+  ordenes Orden[]
+
+  @@unique([tallerId, telefonoNormalizado])
+  @@index([tallerId, nombreNormalizado])
+}
+
+model Equipo {
+  id          String     @id @default(cuid())
+  clienteId   String
+  tipo        TipoEquipo
+  marca       String
+  modelo      String
+  numeroSerie String
+  /// "marca modelo serie" normalizado, para búsqueda
+  busqueda    String
+  notas       String?
+  creadoEn    DateTime   @default(now())
+  tallerId    Int
+
+  taller  Taller  @relation(fields: [tallerId], references: [id], onDelete: Cascade)
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+  ordenes Orden[]
+
+  @@unique([tallerId, numeroSerie])
+  @@index([clienteId])
+}
+
+model Servicio {
+  id          String  @id @default(cuid())
+  codigo      String
+  nombre      String
+  descripcion String
+  /// en pesos, sin decimales
+  precioBase  Int
+  activo      Boolean @default(true)
+  tallerId    Int
+
+  taller  Taller  @relation(fields: [tallerId], references: [id], onDelete: Cascade)
+  ordenes Orden[]
+
+  @@unique([tallerId, codigo])
+}
+
+model Orden {
+  id                  String          @id @default(cuid())
+  numero              String
+  tallerId            Int
+  clienteId           String
+  equipoId            String
+  servicioId          String
+  responsableId       String
+  tecnicoId           String?
+  fallaReportada      String
+  diagnostico         String?
+  solucion            String?
+  estado              EstadoOrden     @default(RECIBIDO)
+  impacto             Impacto
+  urgencia            Urgencia
+  prioridad           Prioridad
+  fechaIngreso        DateTime        @default(now())
+  fechaEstimada       DateTime
+  fechaCierre         DateTime?
+  bloqueada           Boolean         @default(false)
+  motivoBloqueo       String?
+  escalada            Boolean         @default(false)
+  motivoEscalado      String?
+  validada            Boolean         @default(false)
+  validadaPorId       String?
+  /// se completa al cerrar, o antes si se resuelve sin reparación
+  resultado           ResultadoOrden?
+  /// por qué no se repara y qué opciones se le dieron al cliente
+  informeNoReparacion String?
+  /// constancia de aviso: quién le avisó al cliente y cómo
+  avisoCliente        String?
+  actualizadoEn       DateTime        @updatedAt
+
+  cliente       Cliente          @relation(fields: [clienteId], references: [id])
+  equipo        Equipo           @relation(fields: [equipoId], references: [id])
+  servicio      Servicio         @relation(fields: [servicioId], references: [id])
+  responsable   Usuario          @relation("Responsable", fields: [responsableId], references: [id])
+  tecnico       Usuario?         @relation("Tecnico", fields: [tecnicoId], references: [id])
+  validadaPor   Usuario?         @relation("Validador", fields: [validadaPorId], references: [id])
+  evidencias    Evidencia[]
+  historial     Historial[]
+  informes      InformeCritico[]
+  escalamientos Escalamiento[]
+  taller        Taller           @relation(fields: [tallerId], references: [id], onDelete: Cascade)
+
+  @@unique([tallerId, numero])
+  @@index([tallerId])
+  @@index([estado])
+  @@index([prioridad])
+  @@index([tecnicoId])
+  @@index([responsableId])
+  @@index([equipoId])
+}
+
+model Evidencia {
+  id            String   @id @default(cuid())
+  ordenId       String
+  nombreArchivo String
+  tipoMime      String
+  tamanoKb      Int
+  /// ruta relativa dentro de UPLOAD_DIR
+  ruta          String
+  subidaPorId   String
+  fecha         DateTime @default(now())
+
+  orden     Orden   @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  subidaPor Usuario @relation(fields: [subidaPorId], references: [id])
+
+  @@index([ordenId])
+}
+
+model Historial {
+  id             String       @id @default(cuid())
+  ordenId        String
+  /// null = acción automática del sistema
+  usuarioId      String?
+  fecha          DateTime     @default(now())
+  tipo           TipoAccion
+  estadoAnterior EstadoOrden?
+  estadoNuevo    EstadoOrden?
+  comentario     String
+
+  orden   Orden    @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([ordenId, fecha])
+}
+
+/// Pedido de ayuda o decisión a un nivel superior (2 = Supervisor, 3 = Admin).
+/// Una orden tiene como máximo uno sin resolver (índice parcial en la migración).
+model Escalamiento {
+  id              String                  @id @default(cuid())
+  ordenId         String
+  nivel           Int
+  causa           CausaEscalamiento
+  motivo          String
+  automatico      Boolean                 @default(false)
+  estado          EstadoEscalamiento      @default(ABIERTO)
+  /// null si lo generó el sistema
+  creadoPorId     String?
+  creadoEn        DateTime                @default(now())
+  tomadoPorId     String?
+  tomadoEn        DateTime?
+  resueltoPorId   String?
+  resueltoEn      DateTime?
+  resolucion      ResolucionEscalamiento?
+  textoResolucion String?
+
+  orden       Orden    @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  creadoPor   Usuario? @relation("EscaladoCreador", fields: [creadoPorId], references: [id])
+  tomadoPor   Usuario? @relation("EscaladoTomador", fields: [tomadoPorId], references: [id])
+  resueltoPor Usuario? @relation("EscaladoResolutor", fields: [resueltoPorId], references: [id])
+
+  @@index([ordenId])
+  @@index([estado, nivel])
+}
+
+/// Una orden crítica abierta > 24 h genera un informe por cada día que sigue abierta.
+model InformeCritico {
+  id               String   @id @default(cuid())
+  ordenId          String
+  /// días completos abierta al generarse (1 = entre 24 y 48 h…)
+  dia              Int
+  horasAbierta     Float
+  responsableId    String
+  ultimoComentario String?
+  leido            Boolean  @default(false)
+  creadoEn         DateTime @default(now())
+
+  orden       Orden   @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  responsable Usuario @relation(fields: [responsableId], references: [id])
+
+  @@unique([ordenId, dia])
+}
+
+/// Correlativos (ej. número de orden por año).
+model Contador {
+  clave String @id
+  valor Int
+}

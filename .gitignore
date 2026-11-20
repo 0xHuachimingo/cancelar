@@ -1,0 +1,8 @@
+# Configuración local de herramientas y del editor
+.claude/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# Cada parte tiene su propio .gitignore (frontend/ y backend/): dependencias, builds, .env y datos locales
