@@ -10,9 +10,6 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
-    // Pre-empaqueta al arrancar las dependencias de las islas React. Si Vite las descubre
-    // recién al abrir una página (ej. @dnd-kit en /ordenes), re-optimiza en caliente y el
-    // navegador puede quedar pidiendo la versión vieja (504 "Outdated Optimize Dep").
     optimizeDeps: {
       include: [
         'react',
