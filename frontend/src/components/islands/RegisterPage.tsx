@@ -51,7 +51,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <LoginLayout title="Crear cuenta de taller" subtitle="Vas a ser el Admin del taller. Después definís quién cumple cada rol.">
+    <LoginLayout
+      title="Crear cuenta de taller"
+      subtitle="Vas a ser el Admin del taller. Antes de usar el sistema vas a tener que asignar todos los roles: Supervisor, Recepción y Técnico."
+    >
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-8 flex flex-col gap-5">
         {errors.root?.message && (
           <p role="alert" className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">

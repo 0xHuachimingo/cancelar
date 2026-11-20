@@ -251,6 +251,7 @@ Las reglas están en `src/domain/validation.ts` (copia en `frontend/src/lib/work
 - **Servicios**: el nombre no se repite dentro del taller (sin importar mayúsculas); el precio es un entero de 0 a 100.000.000.
 - **Fecha estimada de la orden**: de hoy a 365 días.
 - **Búsquedas**: hasta 100 caracteres.
+- **Evidencias**: hasta **10 MB** por archivo (`MAX_EVIDENCIA_MB`). `UPLOAD_MAX_MB` en `.env` solo puede bajarlo: con un valor mayor a 10 el backend no arranca.
 
 ## Seguridad
 

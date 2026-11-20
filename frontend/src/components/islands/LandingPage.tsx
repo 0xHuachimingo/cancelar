@@ -99,8 +99,8 @@ export default function LandingPage() {
           <ol className="mt-4 grid gap-4 md:grid-cols-3">
             {[
               ['Creá la cuenta', 'Quien la crea queda como Admin del taller.'],
-              ['Definí los roles', 'Agregá a tu equipo y asigná Supervisor, Recepción y Técnico.'],
-              ['Cargá órdenes', 'Con los roles cubiertos, el taller queda listo para trabajar.'],
+              ['Asigná todos los roles', 'Obligatorio antes de usar el sistema: Supervisor, Recepción y Técnico (una persona puede cubrir varios).'],
+              ['Cargá órdenes', 'Con todos los roles asignados, el taller queda listo para trabajar.'],
             ].map(([t, d], i) => (
               <li key={t} className="flex gap-3">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-soft font-bold text-primary">{i + 1}</span>

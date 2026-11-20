@@ -1,3 +1,5 @@
+import { MAX_EVIDENCIA_MB } from '../domain/validation';
+
 /** Variables de entorno validadas al arrancar (si falta algo, el backend no levanta). */
 export interface Env {
   PORT: number;
@@ -20,6 +22,15 @@ export function parseDuration(value: string): number {
   return n * mult;
 }
 
+/** Tamaño máximo de evidencia: se puede bajar con UPLOAD_MAX_MB, pero nunca pasar de MAX_EVIDENCIA_MB. */
+function uploadMaxMb(value: string): number {
+  const mb = Number(value);
+  if (!Number.isFinite(mb) || mb <= 0 || mb > MAX_EVIDENCIA_MB) {
+    throw new Error(`UPLOAD_MAX_MB debe ser un número entre 0 y ${MAX_EVIDENCIA_MB} (MB)`);
+  }
+  return mb;
+}
+
 export function validateEnv(raw: Record<string, unknown>): Env {
   const str = (k: string, def?: string): string => {
     const v = raw[k];
@@ -39,6 +50,6 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     JWT_EXPIRES_IN: parseDuration(str('JWT_EXPIRES_IN', '8h')),
     COOKIE_SECURE: str('COOKIE_SECURE', 'false') === 'true',
     UPLOAD_DIR: str('UPLOAD_DIR', 'uploads'),
-    UPLOAD_MAX_MB: Number(str('UPLOAD_MAX_MB', '10')),
+    UPLOAD_MAX_MB: uploadMaxMb(str('UPLOAD_MAX_MB', String(MAX_EVIDENCIA_MB))),
   };
 }

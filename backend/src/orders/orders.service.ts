@@ -128,7 +128,9 @@ export class OrdersService {
     const t = user.tallerId;
     const taller = await this.prisma.taller.findUnique({ where: { id: t } });
     if (!taller?.configurado) {
-      throw new WorkflowException('El taller todavía no está configurado', ['Un Admin tiene que completar la configuración inicial']);
+      throw new WorkflowException('El taller todavía no está configurado', [
+        'Antes de usar el sistema, un Admin tiene que asignar todos los roles (Supervisor, Recepción y Técnico) y terminar la configuración',
+      ]);
     }
     const [cliente, equipo, servicio, responsable, tecnico] = await Promise.all([
       this.prisma.cliente.findFirst({ where: { id: dto.clienteId, tallerId: t } }),

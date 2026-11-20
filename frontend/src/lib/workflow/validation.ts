@@ -27,6 +27,9 @@ export const MAX_DIAS_ESTIMADA = 365;
 /** Texto de búsqueda. */
 export const MAX_BUSQUEDA = 100;
 
+/** Tamaño máximo de cada archivo de evidencia, en MB. UPLOAD_MAX_MB solo puede bajarlo. */
+export const MAX_EVIDENCIA_MB = 10;
+
 export function digitosTelefono(telefono: string): number {
   return telefono.replace(/\D/g, '').length;
 }

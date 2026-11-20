@@ -105,7 +105,10 @@ function ShellInner({ currentPath, permission, title, description, actions, cust
               <RoleSwitcher />
             </div>
             {pendingSetup && !isAdmin ? (
-              <EmptyState title="El taller se está configurando" description="El Admin todavía no terminó la configuración inicial. Vas a poder entrar cuando la complete." />
+              <EmptyState
+                title="El taller se está configurando"
+                description="Antes de usar el sistema, el Admin tiene que asignar todos los roles (Supervisor, Recepción y Técnico) y terminar la configuración. Vas a poder entrar cuando la complete."
+              />
             ) : allowed ? (
               <>
                 {!customHeader && (

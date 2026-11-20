@@ -1,6 +1,7 @@
 import { coincideFirma } from '../orders/evidence.signature';
 import { corteDeSesiones, nuevaSesion, sesionVigente } from '../auth/sessions';
-import { problemaPassword, problemaTelefono } from '../domain/validation';
+import { validateEnv } from '../config/env';
+import { MAX_EVIDENCIA_MB, problemaPassword, problemaTelefono } from '../domain/validation';
 import { escapeLike } from './text';
 
 describe('escapeLike', () => {
@@ -46,6 +47,20 @@ describe('corte de sesiones', () => {
     expect(sesionVigente({ sub: 'u', iat: 10_000 }, corte)).toBe(false);
     expect(sesionVigente({ sub: 'u', iat: 10_001 }, corte)).toBe(true);
     expect(sesionVigente({ sub: 'u' }, corte)).toBe(false);
+  });
+});
+
+describe('tamaño máximo de evidencia', () => {
+  const base = { DATABASE_URL: 'postgresql://x', JWT_SECRET: 'x'.repeat(40) };
+  it('por defecto es 10 MB', () => {
+    expect(MAX_EVIDENCIA_MB).toBe(10);
+    expect(validateEnv(base).UPLOAD_MAX_MB).toBe(10);
+  });
+  it('UPLOAD_MAX_MB puede bajarlo, pero no subirlo ni ser inválido', () => {
+    expect(validateEnv({ ...base, UPLOAD_MAX_MB: '2' }).UPLOAD_MAX_MB).toBe(2);
+    for (const v of ['11', '100', '0', '-1', 'diez']) {
+      expect(() => validateEnv({ ...base, UPLOAD_MAX_MB: v })).toThrow(/UPLOAD_MAX_MB/);
+    }
   });
 });
 

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, AlertTriangle, Building2, CheckCircle2, CircleCheckBig, Pencil, Plus, Tags, UsersRound } from 'lucide-react';
+import {
+  AlertCircle, AlertTriangle, Building2, CheckCircle2, CircleCheckBig, CircleDashed, Pencil, Plus, ShieldAlert, Tags, UsersRound,
+} from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -41,6 +43,51 @@ function FieldError({ id, message }: { id: string; message?: string }) {
       <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
       {message}
     </p>
+  );
+}
+
+/** Aviso obligatorio: sin todos los roles asignados el sistema no se puede usar. */
+function RequiredRolesNotice({ progress }: { progress: SetupProgress }) {
+  const faltan = progress.rolesFaltantes;
+  return (
+    <section
+      aria-labelledby="roles-obligatorios"
+      className="rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-50"
+    >
+      <h2 id="roles-obligatorios" className="flex items-center gap-2 text-base font-semibold">
+        <ShieldAlert className="size-5 shrink-0" aria-hidden="true" />
+        Paso obligatorio: asigná todos los roles
+      </h2>
+      <p className="mt-1 text-sm">
+        El sistema no se puede usar hasta que cada rol tenga al menos una persona activa. Una misma persona puede cubrir varios roles.
+      </p>
+      <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {ROLES.map((r) => {
+          const ok = !faltan.includes(r);
+          return (
+            <li
+              key={r}
+              className="flex items-start gap-2 rounded-md border border-amber-200 bg-surface px-3 py-2 text-fg dark:border-amber-400/20"
+            >
+              {ok ? (
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+              ) : (
+                <CircleDashed className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{ROL_LABEL[r]}</p>
+                <p className="text-xs text-muted">{ok ? 'Asignado' : 'Falta asignar'}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <p role="status" className="mt-3 text-sm font-medium">
+        {faltan.length === 0
+          ? 'Todos los roles están asignados: ya podés terminar la configuración.'
+          : `Falta asignar: ${faltan.map((r) => ROL_LABEL[r]).join(', ')}.`}
+      </p>
+    </section>
   );
 }
 
@@ -327,6 +374,7 @@ function Content() {
 
   return (
     <div className="flex flex-col gap-6">
+      {!p.configurado && <RequiredRolesNotice progress={p} />}
       <TallerCard progress={p} />
       <PeopleCard progress={p} />
       <ServicesCard />
@@ -334,7 +382,11 @@ function Content() {
         <Card>
           <CardBody className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted">
-              {ready ? 'Todo listo: ya se puede empezar a cargar órdenes.' : 'Hasta terminar estos pasos no se pueden crear órdenes.'}
+              {ready
+                ? 'Todo listo: ya se puede empezar a cargar órdenes.'
+                : p.rolesFaltantes.length > 0
+                  ? `Para usar el sistema falta asignar: ${p.rolesFaltantes.map((r) => ROL_LABEL[r]).join(', ')}.`
+                  : 'Activá al menos un servicio para terminar.'}
             </p>
             <Button
               size="lg"

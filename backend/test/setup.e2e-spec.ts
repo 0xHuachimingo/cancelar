@@ -96,6 +96,7 @@ describe('Configuración inicial (e2e)', () => {
       fechaEstimada: new Date(Date.now() + 864e5).toISOString(),
     }).expect(422);
     expect((o.body as ErrBody).message).toBe('El taller todavía no está configurado');
+    expect((o.body as ErrBody).details?.[0]).toMatch(/asignar todos los roles/);
   });
 
   it('una persona puede cubrir varios roles', async () => {

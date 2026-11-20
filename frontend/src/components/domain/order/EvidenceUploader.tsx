@@ -9,13 +9,14 @@ import { useUsers } from '@/hooks/useCatalog';
 import { isMockApi } from '@/lib/api/config';
 import type { Evidencia } from '@/types/domain';
 import type { EvidenceInput } from '@/lib/api/apiClient';
+import { MAX_EVIDENCIA_MB } from '@/lib/workflow/validation';
 
 /** Igual que EVIDENCE_MIME_TYPES del backend: sin SVG (puede contener scripts). */
 const ACCEPTED_TYPES: readonly string[] = [
   'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'application/pdf',
 ];
 const ACCEPT = ACCEPTED_TYPES.join(',');
-const MAX_MB = 10;
+const MAX_MB = MAX_EVIDENCIA_MB;
 
 export interface EvidenceUploaderProps {
   evidencias: readonly Evidencia[];
