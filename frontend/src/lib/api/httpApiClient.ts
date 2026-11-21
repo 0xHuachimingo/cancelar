@@ -56,7 +56,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   private async request<T>(method: Method, path: string, opts: { query?: Query; body?: unknown; form?: FormData } = {}): Promise<T> {
-    const url = new URL(this.baseUrl + path);
+    const url = new URL(this.baseUrl + path, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
     for (const [k, v] of Object.entries(opts.query ?? {})) if (v) url.searchParams.set(k, v);
 
     let res: Response;
