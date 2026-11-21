@@ -44,7 +44,7 @@ describe('Configuración inicial (e2e)', () => {
   beforeAll(async () => {
     await dropTestSchema(process.env.DATABASE_URL!);
     run('npx prisma migrate deploy');
-    run('npx tsx prisma/seed.ts');
+    run('npx tsx test/seed-pruebas.ts');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     configureApp(app);

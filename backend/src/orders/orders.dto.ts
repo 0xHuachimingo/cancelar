@@ -120,6 +120,6 @@ export class OrdersQuery {
   @IsOptional() @IsEnum(Prioridad)
   priority?: Prioridad;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsString() @MaxLength(50)
   ownerId?: string;
 }

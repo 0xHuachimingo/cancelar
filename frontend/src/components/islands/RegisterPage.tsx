@@ -5,8 +5,7 @@ import { AlertCircle, Building2, Lock, Mail, UserPlus, UserRound } from 'lucide-
 import { Button, LinkButton } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { apiClient } from '@/lib/api/apiClient';
-import { isMockApi } from '@/lib/api/config';
-import { signUp } from '@/lib/auth/mockCurrentUser';
+import { signUp } from '@/lib/auth/session';
 import { PASSWORD_HINT } from '@/schemas/common';
 import { registerSchema, type RegisterInput } from '@/schemas/login.schema';
 import { LoginLayout } from './LoginPage';
@@ -14,10 +13,9 @@ import { LoginLayout } from './LoginPage';
 /** Primera cuenta del sistema: crea el taller y su Admin, y lleva a la configuración inicial. */
 export default function RegisterPage() {
   // null mientras se consulta; false si ya no hay lugar para otro taller
-  const [abierto, setAbierto] = useState<boolean | null>(isMockApi ? false : null);
+  const [abierto, setAbierto] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (isMockApi) return;
     void apiClient.getSetupStatus().then((s) => setAbierto(s.registroAbierto), () => setAbierto(true));
   }, []);
 
@@ -41,7 +39,7 @@ export default function RegisterPage() {
     return (
       <LoginLayout
         title="Crear cuenta"
-        subtitle={isMockApi ? 'La demo no tiene registro: entrá con un rol de prueba.' : 'El registro de talleres nuevos está cerrado por el momento.'}
+        subtitle="El registro de talleres nuevos está cerrado por el momento."
       >
         <div className="mt-8">
           <LinkButton href="/login">Ir a iniciar sesión</LinkButton>

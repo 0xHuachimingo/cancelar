@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors,
+  Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
@@ -108,11 +108,16 @@ export class OrdersController {
 
   /** Descarga/visualización del archivo de evidencia. */
   @Get(':id/evidence/:evidenceId/file')
+  // Aunque algo se colara, el navegador lo abre aislado: sin scripts, formularios ni acceso a la sesión
+  @Header('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox")
+  @Header('Cache-Control', 'private, no-store')
   async evidenceFile(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('evidenceId') evidenceId: string) {
     const f = await this.orders.evidenceFile(user, id, evidenceId);
+    // Las fotos se ven en el navegador; los PDF se descargan y se abren fuera del sitio
+    const modo = f.mime.startsWith('image/') ? 'inline' : 'attachment';
     return new StreamableFile(createReadStream(f.path), {
       type: f.mime,
-      disposition: `inline; filename*=UTF-8''${encodeURIComponent(f.nombre)}`,
+      disposition: `${modo}; filename*=UTF-8''${encodeURIComponent(f.nombre)}`,
     });
   }
 }

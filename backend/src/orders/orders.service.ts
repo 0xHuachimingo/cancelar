@@ -12,7 +12,7 @@ import { ESTADO_LABEL, RESOLUCION_LABEL } from '../domain/labels';
 import { can } from '../domain/permissions';
 import { calculatePriority } from '../domain/priority';
 import { MAX_DIAS_ESTIMADA, limiteFechaEstimada } from '../domain/validation';
-import { coincideFirma } from './evidence.signature';
+import { nombreSeguro, problemaEvidencia } from './evidence.signature';
 import {
   canActOnOrder, canBlock, canReopen, canTransition, canUnblock, canValidate, isAssignedTo,
 } from '../domain/transitions';
@@ -20,6 +20,7 @@ import { Prisma } from '../generated/prisma/client';
 import type { EstadoOrden, Prioridad, TipoAccion } from '../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { EvidenceStorage } from './evidence.storage';
+import { eventoSeguridad } from '../common/security-log';
 import type {
   CreateOrderDto, EscalateDto, OrdersQuery, ReopenDto, ResolveEscalationDto, TransitionDto, UpdateOrderDto,
 } from './orders.dto';
@@ -490,17 +491,19 @@ export class OrdersService {
     if (!EVIDENCE_MIME_TYPES.has(file.mimetype)) {
       throw new BadRequestException('La evidencia debe ser una foto (JPG, PNG, WebP, GIF, HEIC) o un PDF');
     }
-    if (!coincideFirma(file.mimetype, file.buffer)) {
-      throw new BadRequestException('El contenido del archivo no corresponde a una foto o un PDF');
+    const problema = problemaEvidencia(file.mimetype, file.buffer);
+    if (problema) {
+      eventoSeguridad('evidencia.rechazada', { usuario: user.id, orden: id, tipo: file.mimetype, motivo: problema });
+      throw new BadRequestException(problema);
     }
     // multer entrega el nombre en latin1: se recupera el UTF-8 original (tildes, ñ)
-    const nombre = Buffer.from(file.originalname, 'latin1').toString('utf8').slice(0, 200);
+    const nombre = nombreSeguro(Buffer.from(file.originalname, 'latin1').toString('utf8'));
 
     // Validar permisos antes de escribir en disco
     const o = await this.loadVisible(this.prisma, user, id);
     this.assertCanEditEvidence(user, o);
 
-    const ruta = await this.storage.save(id, file.buffer, nombre);
+    const ruta = await this.storage.save(id, file.buffer, file.mimetype);
     try {
       return await this.mutate(user, id, async (fresh, tx) => {
         this.assertCanEditEvidence(user, fresh);
