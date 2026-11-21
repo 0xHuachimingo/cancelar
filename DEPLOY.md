@@ -1,5 +1,7 @@
 # Deploy de ServicioTécnico
 
+> **¿Frontend en Vercel y backend en Render?** Seguí [DEPLOY-VERCEL-RENDER.md](DEPLOY-VERCEL-RENDER.md). Esta guía es para un servidor propio.
+
 Guía para publicar el sistema en un servidor. Son dos aplicaciones Node y una base PostgreSQL:
 
 | Parte | Carpeta | Qué es | Puerto local |
