@@ -8,8 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Toaster } from '@/components/ui/Toast';
 import { apiClient, type SetupStatus } from '@/lib/api/apiClient';
-import { isMockApi } from '@/lib/api/config';
-import { loadSession } from '@/lib/auth/mockCurrentUser';
+import { loadSession } from '@/lib/auth/session';
 import type { Usuario } from '@/types/domain';
 
 const FEATURES: readonly { icon: LucideIcon; title: string; text: string }[] = [
@@ -29,7 +28,7 @@ export default function LandingPage() {
     void loadSession().then(setUser);
   }, []);
 
-  const puedeRegistrar = !isMockApi && status?.registroAbierto === true;
+  const puedeRegistrar = status?.registroAbierto === true;
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
@@ -63,8 +62,6 @@ export default function LandingPage() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             {user ? (
               <LinkButton href="/dashboard" size="lg">Ir al sistema <ArrowRight className="size-4" aria-hidden="true" /></LinkButton>
-            ) : isMockApi ? (
-              <LinkButton href="/login" size="lg">Entrar a la demo <ArrowRight className="size-4" aria-hidden="true" /></LinkButton>
             ) : (
               <>
                 {puedeRegistrar && (

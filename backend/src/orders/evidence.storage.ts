@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import { access, mkdir, rm, writeFile } from 'node:fs/promises';
-import { extname, join, posix, resolve, sep } from 'node:path';
+import { join, posix, resolve, sep } from 'node:path';
 import type { Env } from '../config/env';
+import { EXTENSION_EVIDENCIA } from './evidence.signature';
 
 /**
  * Almacenamiento de evidencias en disco (UPLOAD_DIR/<ordenId>/<uuid>.<ext>).
@@ -17,8 +18,12 @@ export class EvidenceStorage {
     this.root = resolve(config.get('UPLOAD_DIR', { infer: true }));
   }
 
-  async save(ordenId: string, buffer: Buffer, originalName: string): Promise<string> {
-    const ext = extname(originalName).toLowerCase().replace(/[^.a-z0-9]/g, '').slice(0, 10);
+  /** La extensión sale del tipo ya verificado, nunca del nombre que mandó el usuario. */
+  async save(ordenId: string, buffer: Buffer, mime: string): Promise<string> {
+    const ext = EXTENSION_EVIDENCIA[mime];
+    if (!ext) throw new Error(`Tipo de evidencia no admitido: ${mime}`);
+    // El id viene de la base, pero igual no se acepta nada que pueda armar otra ruta
+    if (!/^[A-Za-z0-9_-]+$/.test(ordenId)) throw new Error('Id de orden inválido para la ruta de evidencia');
     // Siempre con «/»: la ruta se guarda en la base y tiene que servir igual en Windows y Linux
     const rel = posix.join(ordenId, `${randomUUID()}${ext}`);
     await mkdir(join(this.root, ordenId), { recursive: true });

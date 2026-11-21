@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { now } from '@/lib/clock';
 import { MIN_MOTIVO } from '@/lib/workflow/transitions';
 import { MAX_DIAS_ESTIMADA } from '@/lib/workflow/validation';
 import { NIVELES_IMPACTO, NIVELES_URGENCIA } from '@/types/domain';
@@ -12,7 +11,7 @@ export function localDate(ms: number): string {
 
 /** Último día aceptado como fecha estimada (AAAA-MM-DD). */
 export function maxFechaEstimada(): string {
-  const d = new Date(now());
+  const d = new Date(Date.now());
   d.setDate(d.getDate() + MAX_DIAS_ESTIMADA);
   return localDate(d.getTime());
 }
@@ -33,7 +32,7 @@ export const orderSchema = z.object({
   fechaEstimada: z
     .string()
     .min(1, 'Elegí la fecha estimada de entrega')
-    .refine((v) => v >= localDate(now()), 'La fecha estimada no puede ser anterior a hoy')
+    .refine((v) => v >= localDate(Date.now()), 'La fecha estimada no puede ser anterior a hoy')
     .refine((v) => v <= maxFechaEstimada(), `Como máximo ${MAX_DIAS_ESTIMADA} días después de hoy`),
 });
 

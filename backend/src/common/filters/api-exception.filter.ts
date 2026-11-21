@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger, PayloadTooLargeException } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { eventoSeguridad } from '../security-log';
 import { Prisma } from '../../generated/prisma/client';
 
 /** Cuerpo de error que espera el frontend: { statusCode, message, details? } */
@@ -67,6 +68,13 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (!body) {
       this.logger.error(exception instanceof Error ? exception.stack : String(exception));
       body = { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, message: 'Error interno del servidor' };
+    }
+    // Accesos denegados y exceso de intentos: quedan registrados para poder investigarlos
+    if (body.statusCode === HttpStatus.FORBIDDEN || body.statusCode === HttpStatus.TOO_MANY_REQUESTS) {
+      const req = host.switchToHttp().getRequest<Request & { user?: { id: string } }>();
+      eventoSeguridad(body.statusCode === HttpStatus.FORBIDDEN ? 'acceso.denegado' : 'limite.superado', {
+        ip: req.ip, usuario: req.user?.id, metodo: req.method, ruta: req.path,
+      });
     }
     res.status(body.statusCode).json(body);
   }

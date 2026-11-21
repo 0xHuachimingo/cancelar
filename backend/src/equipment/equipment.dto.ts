@@ -43,5 +43,6 @@ export class EquipmentQuery {
 
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   clientId?: string;
 }

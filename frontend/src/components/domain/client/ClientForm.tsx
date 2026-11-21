@@ -46,14 +46,14 @@ export function ClientForm({ idPrefix = 'cf', initialName = '', onCreated, onCan
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="@container flex flex-col gap-4">
       {errors.root?.message && (
         <p role="alert" className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           {errors.root.message}
         </p>
       )}
-      <div className={compact ? 'grid gap-4 sm:grid-cols-2' : 'grid gap-4'}>
+      <div className={compact ? 'grid gap-4 @md:grid-cols-2' : 'grid gap-4'}>
         <Input
           id={`${idPrefix}-nombre`}
           label="Nombre y apellido"
