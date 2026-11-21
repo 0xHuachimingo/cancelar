@@ -181,9 +181,9 @@ Todas las rutas llevan el prefijo `/api` y requieren sesión, salvo `health`, `a
 | Método | Ruta | Permiso |
 |---|---|---|
 | POST | `/auth/login` · `/auth/logout` | público (login: máx. 5 intentos/min) |
-| POST | `/auth/register` | público; solo si todavía no hay ninguna cuenta (crea el taller y su Admin) |
+| POST | `/auth/register` | público (crea un taller nuevo y su Admin; 10 por minuto y 20 por hora por IP) |
 | POST | `/auth/password` | sesión |
-| GET | `/setup/status` | público (talleres registrados, si hay lugar y si está el borrado de pruebas) |
+| GET | `/setup/status` | público (si ya hay talleres registrados y si el registro está abierto) |
 | GET | `/setup/mine` | sesión (si el taller del usuario terminó la configuración) |
 | GET · PATCH · POST | `/setup/progress` · `/setup/taller` · `/setup/complete` · `/setup/users` · `/setup/services` | `users.manage` (Admin) |
 | GET | `/auth/me` | sesión |
